@@ -268,6 +268,7 @@ function translateAuthError(err: unknown) {
   if (/already registered/i.test(msg)) return "Este e-mail já tem conta. Faça login.";
   if (/password/i.test(msg) && /weak|pwned|leaked/i.test(msg))
     return "Senha fraca ou já vazada. Escolha outra.";
+  if (/email address is not allowed|invalid email/i.test(msg)) return "Este e-mail não é aceito. Use um endereço real.";
   if (/rate limit/i.test(msg)) return "Muitas tentativas. Aguarde alguns minutos.";
   return msg;
 }
