@@ -1,6 +1,15 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Bell, ChevronsUpDown, Check, LogOut, Moon, Search, Sun, Settings, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -203,18 +212,40 @@ function Topbar({ onOpenPalette, onSignOut }: { onOpenPalette: () => void; onSig
 function WorkspaceSwitcher() {
   const { memberships, current, setCurrentId } = useWorkspace();
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  async function createWorkspace() {
-    const name = window.prompt("Nome do novo workspace");
-    if (!name?.trim()) return;
+  async function createWorkspace(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
     const { data, error } = await supabase.rpc("create_workspace", { _name: name.trim() });
+    setSaving(false);
     if (error) return toast.error("Não foi possível criar o workspace.");
     await queryClient.invalidateQueries({ queryKey: ["memberships"] });
     setCurrentId(data);
+    setDialogOpen(false);
+    setName("");
     toast.success("Workspace criado.");
   }
 
   return (
+    <>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent className="rounded-3xl">
+        <DialogHeader>
+          <DialogTitle>Novo workspace</DialogTitle>
+          <DialogDescription>Cada workspace tem seus próprios números, contatos e equipe.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={createWorkspace} className="space-y-4">
+          <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Prime Consórcios" maxLength={80} className="h-11 rounded-xl" />
+          <DialogFooter>
+            <Button type="submit" disabled={saving || !name.trim()}>Criar workspace</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="hidden h-10 max-w-[220px] items-center gap-2 rounded-xl px-2.5 text-left transition-colors hover:bg-accent sm:flex">
@@ -239,11 +270,12 @@ function WorkspaceSwitcher() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={createWorkspace}>
+        <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
           <Plus /> Novo workspace
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </>
   );
 }
 

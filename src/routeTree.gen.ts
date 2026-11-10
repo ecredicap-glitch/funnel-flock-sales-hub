@@ -17,6 +17,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_a
 import { Route as AuthenticatedAppCadenciasRouteImport } from './routes/_authenticated/_app/cadencias'
 import { Route as AuthenticatedAppCampanhasRouteImport } from './routes/_authenticated/_app/campanhas'
 import { Route as AuthenticatedAppCockpitRouteImport } from './routes/_authenticated/_app/cockpit'
+import { Route as AuthenticatedAppConfiguracoesRouteImport } from './routes/_authenticated/_app/configuracoes'
 import { Route as AuthenticatedAppContatosRouteImport } from './routes/_authenticated/_app/contatos'
 import { Route as AuthenticatedAppConversasRouteImport } from './routes/_authenticated/_app/conversas'
 import { Route as AuthenticatedAppFunilRouteImport } from './routes/_authenticated/_app/funil'
@@ -65,6 +66,12 @@ const AuthenticatedAppCockpitRoute = AuthenticatedAppCockpitRouteImport.update({
   path: '/cockpit',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppConfiguracoesRoute =
+  AuthenticatedAppConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppContatosRoute =
   AuthenticatedAppContatosRouteImport.update({
     id: '/contatos',
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/cadencias': typeof AuthenticatedAppCadenciasRoute
   '/campanhas': typeof AuthenticatedAppCampanhasRoute
   '/cockpit': typeof AuthenticatedAppCockpitRoute
+  '/configuracoes': typeof AuthenticatedAppConfiguracoesRoute
   '/contatos': typeof AuthenticatedAppContatosRoute
   '/conversas': typeof AuthenticatedAppConversasRoute
   '/funil': typeof AuthenticatedAppFunilRoute
@@ -128,6 +136,7 @@ export interface FileRoutesByTo {
   '/cadencias': typeof AuthenticatedAppCadenciasRoute
   '/campanhas': typeof AuthenticatedAppCampanhasRoute
   '/cockpit': typeof AuthenticatedAppCockpitRoute
+  '/configuracoes': typeof AuthenticatedAppConfiguracoesRoute
   '/contatos': typeof AuthenticatedAppContatosRoute
   '/conversas': typeof AuthenticatedAppConversasRoute
   '/funil': typeof AuthenticatedAppFunilRoute
@@ -146,6 +155,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/cadencias': typeof AuthenticatedAppCadenciasRoute
   '/_authenticated/_app/campanhas': typeof AuthenticatedAppCampanhasRoute
   '/_authenticated/_app/cockpit': typeof AuthenticatedAppCockpitRoute
+  '/_authenticated/_app/configuracoes': typeof AuthenticatedAppConfiguracoesRoute
   '/_authenticated/_app/contatos': typeof AuthenticatedAppContatosRoute
   '/_authenticated/_app/conversas': typeof AuthenticatedAppConversasRoute
   '/_authenticated/_app/funil': typeof AuthenticatedAppFunilRoute
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/cadencias'
     | '/campanhas'
     | '/cockpit'
+    | '/configuracoes'
     | '/contatos'
     | '/conversas'
     | '/funil'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/cadencias'
     | '/campanhas'
     | '/cockpit'
+    | '/configuracoes'
     | '/contatos'
     | '/conversas'
     | '/funil'
@@ -195,6 +207,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/cadencias'
     | '/_authenticated/_app/campanhas'
     | '/_authenticated/_app/cockpit'
+    | '/_authenticated/_app/configuracoes'
     | '/_authenticated/_app/contatos'
     | '/_authenticated/_app/conversas'
     | '/_authenticated/_app/funil'
@@ -269,6 +282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCockpitRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/_app/configuracoes': {
+      id: '/_authenticated/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedAppConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/_app/contatos': {
       id: '/_authenticated/_app/contatos'
       path: '/contatos'
@@ -325,6 +345,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCadenciasRoute: typeof AuthenticatedAppCadenciasRoute
   AuthenticatedAppCampanhasRoute: typeof AuthenticatedAppCampanhasRoute
   AuthenticatedAppCockpitRoute: typeof AuthenticatedAppCockpitRoute
+  AuthenticatedAppConfiguracoesRoute: typeof AuthenticatedAppConfiguracoesRoute
   AuthenticatedAppContatosRoute: typeof AuthenticatedAppContatosRoute
   AuthenticatedAppConversasRoute: typeof AuthenticatedAppConversasRoute
   AuthenticatedAppFunilRoute: typeof AuthenticatedAppFunilRoute
@@ -338,6 +359,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCadenciasRoute: AuthenticatedAppCadenciasRoute,
   AuthenticatedAppCampanhasRoute: AuthenticatedAppCampanhasRoute,
   AuthenticatedAppCockpitRoute: AuthenticatedAppCockpitRoute,
+  AuthenticatedAppConfiguracoesRoute: AuthenticatedAppConfiguracoesRoute,
   AuthenticatedAppContatosRoute: AuthenticatedAppContatosRoute,
   AuthenticatedAppConversasRoute: AuthenticatedAppConversasRoute,
   AuthenticatedAppFunilRoute: AuthenticatedAppFunilRoute,
