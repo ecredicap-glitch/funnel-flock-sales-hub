@@ -14,16 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      members: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["member_role"]
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["member_role"]
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["member_role"]
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_workspace: { Args: { _name: string }; Returns: string }
+      has_workspace_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["member_role"]
+          _workspace_id: string
+        }
+        Returns: boolean
+      }
+      is_workspace_member: { Args: { _workspace_id: string }; Returns: boolean }
+      shares_workspace_with: { Args: { _other: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      member_role: "admin" | "operator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +251,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      member_role: ["admin", "operator"],
+    },
   },
 } as const
