@@ -28,3 +28,12 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules (ZapPilot)
+
+- Multi-tenancy: every app table carries `workspace_id` and RLS uses `public.is_workspace_member()` / `public.has_workspace_role()` (security definer) — avoids recursive policies.
+- Workspace roles live only in `public.members.role` (enum `member_role`), never on profiles — prevents privilege escalation.
+- A signup trigger (`handle_new_user`) creates the profile, a first workspace and an admin membership; extra workspaces go through the `create_workspace` RPC — workspaces have no direct INSERT policy.
+- Signed-in pages live under `src/routes/_authenticated/_app/` (gate in `_authenticated/route.tsx`, `ssr: false`; shell + workspace context in `_app.tsx`) — the session is in browser storage.
+- Navigation entries are defined once in `src/lib/nav.ts` and feed the rail, bottom bar and command palette — keeps the three in sync.
+- WhatsApp access goes through a `WhatsAppProvider` interface with swappable adapters; gateway credentials are server-only — the provider may change later.
