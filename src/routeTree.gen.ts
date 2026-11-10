@@ -10,33 +10,205 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
+import { Route as AuthenticatedAppCadenciasRouteImport } from './routes/_authenticated/_app/cadencias'
+import { Route as AuthenticatedAppCampanhasRouteImport } from './routes/_authenticated/_app/campanhas'
+import { Route as AuthenticatedAppCockpitRouteImport } from './routes/_authenticated/_app/cockpit'
+import { Route as AuthenticatedAppContatosRouteImport } from './routes/_authenticated/_app/contatos'
+import { Route as AuthenticatedAppConversasRouteImport } from './routes/_authenticated/_app/conversas'
+import { Route as AuthenticatedAppFunilRouteImport } from './routes/_authenticated/_app/funil'
+import { Route as AuthenticatedAppPlanosRouteImport } from './routes/_authenticated/_app/planos'
+import { Route as AuthenticatedAppPrivacidadeRouteImport } from './routes/_authenticated/_app/privacidade'
+import { Route as AuthenticatedAppTemplatesRouteImport } from './routes/_authenticated/_app/templates'
+import { Route as AuthenticatedAppWhatsappRouteImport } from './routes/_authenticated/_app/whatsapp'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAppCadenciasRoute =
+  AuthenticatedAppCadenciasRouteImport.update({
+    id: '/cadencias',
+    path: '/cadencias',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppCampanhasRoute =
+  AuthenticatedAppCampanhasRouteImport.update({
+    id: '/campanhas',
+    path: '/campanhas',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppCockpitRoute = AuthenticatedAppCockpitRouteImport.update({
+  id: '/cockpit',
+  path: '/cockpit',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppContatosRoute =
+  AuthenticatedAppContatosRouteImport.update({
+    id: '/contatos',
+    path: '/contatos',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppConversasRoute =
+  AuthenticatedAppConversasRouteImport.update({
+    id: '/conversas',
+    path: '/conversas',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppFunilRoute = AuthenticatedAppFunilRouteImport.update({
+  id: '/funil',
+  path: '/funil',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPlanosRoute = AuthenticatedAppPlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPrivacidadeRoute =
+  AuthenticatedAppPrivacidadeRouteImport.update({
+    id: '/privacidade',
+    path: '/privacidade',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppTemplatesRoute =
+  AuthenticatedAppTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppWhatsappRoute =
+  AuthenticatedAppWhatsappRouteImport.update({
+    id: '/whatsapp',
+    path: '/whatsapp',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/cadencias': typeof AuthenticatedAppCadenciasRoute
+  '/campanhas': typeof AuthenticatedAppCampanhasRoute
+  '/cockpit': typeof AuthenticatedAppCockpitRoute
+  '/contatos': typeof AuthenticatedAppContatosRoute
+  '/conversas': typeof AuthenticatedAppConversasRoute
+  '/funil': typeof AuthenticatedAppFunilRoute
+  '/planos': typeof AuthenticatedAppPlanosRoute
+  '/privacidade': typeof AuthenticatedAppPrivacidadeRoute
+  '/templates': typeof AuthenticatedAppTemplatesRoute
+  '/whatsapp': typeof AuthenticatedAppWhatsappRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/cadencias': typeof AuthenticatedAppCadenciasRoute
+  '/campanhas': typeof AuthenticatedAppCampanhasRoute
+  '/cockpit': typeof AuthenticatedAppCockpitRoute
+  '/contatos': typeof AuthenticatedAppContatosRoute
+  '/conversas': typeof AuthenticatedAppConversasRoute
+  '/funil': typeof AuthenticatedAppFunilRoute
+  '/planos': typeof AuthenticatedAppPlanosRoute
+  '/privacidade': typeof AuthenticatedAppPrivacidadeRoute
+  '/templates': typeof AuthenticatedAppTemplatesRoute
+  '/whatsapp': typeof AuthenticatedAppWhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/_app/cadencias': typeof AuthenticatedAppCadenciasRoute
+  '/_authenticated/_app/campanhas': typeof AuthenticatedAppCampanhasRoute
+  '/_authenticated/_app/cockpit': typeof AuthenticatedAppCockpitRoute
+  '/_authenticated/_app/contatos': typeof AuthenticatedAppContatosRoute
+  '/_authenticated/_app/conversas': typeof AuthenticatedAppConversasRoute
+  '/_authenticated/_app/funil': typeof AuthenticatedAppFunilRoute
+  '/_authenticated/_app/planos': typeof AuthenticatedAppPlanosRoute
+  '/_authenticated/_app/privacidade': typeof AuthenticatedAppPrivacidadeRoute
+  '/_authenticated/_app/templates': typeof AuthenticatedAppTemplatesRoute
+  '/_authenticated/_app/whatsapp': typeof AuthenticatedAppWhatsappRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/cadencias'
+    | '/campanhas'
+    | '/cockpit'
+    | '/contatos'
+    | '/conversas'
+    | '/funil'
+    | '/planos'
+    | '/privacidade'
+    | '/templates'
+    | '/whatsapp'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/cadencias'
+    | '/campanhas'
+    | '/cockpit'
+    | '/contatos'
+    | '/conversas'
+    | '/funil'
+    | '/planos'
+    | '/privacidade'
+    | '/templates'
+    | '/whatsapp'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/reset-password'
+    | '/_authenticated/_app'
+    | '/_authenticated/_app/cadencias'
+    | '/_authenticated/_app/campanhas'
+    | '/_authenticated/_app/cockpit'
+    | '/_authenticated/_app/contatos'
+    | '/_authenticated/_app/conversas'
+    | '/_authenticated/_app/funil'
+    | '/_authenticated/_app/planos'
+    | '/_authenticated/_app/privacidade'
+    | '/_authenticated/_app/templates'
+    | '/_authenticated/_app/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +220,152 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/_app': {
+      id: '/_authenticated/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_app/cadencias': {
+      id: '/_authenticated/_app/cadencias'
+      path: '/cadencias'
+      fullPath: '/cadencias'
+      preLoaderRoute: typeof AuthenticatedAppCadenciasRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/campanhas': {
+      id: '/_authenticated/_app/campanhas'
+      path: '/campanhas'
+      fullPath: '/campanhas'
+      preLoaderRoute: typeof AuthenticatedAppCampanhasRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/cockpit': {
+      id: '/_authenticated/_app/cockpit'
+      path: '/cockpit'
+      fullPath: '/cockpit'
+      preLoaderRoute: typeof AuthenticatedAppCockpitRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/contatos': {
+      id: '/_authenticated/_app/contatos'
+      path: '/contatos'
+      fullPath: '/contatos'
+      preLoaderRoute: typeof AuthenticatedAppContatosRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/conversas': {
+      id: '/_authenticated/_app/conversas'
+      path: '/conversas'
+      fullPath: '/conversas'
+      preLoaderRoute: typeof AuthenticatedAppConversasRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/funil': {
+      id: '/_authenticated/_app/funil'
+      path: '/funil'
+      fullPath: '/funil'
+      preLoaderRoute: typeof AuthenticatedAppFunilRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/planos': {
+      id: '/_authenticated/_app/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof AuthenticatedAppPlanosRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/privacidade': {
+      id: '/_authenticated/_app/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof AuthenticatedAppPrivacidadeRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/templates': {
+      id: '/_authenticated/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AuthenticatedAppTemplatesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/whatsapp': {
+      id: '/_authenticated/_app/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AuthenticatedAppWhatsappRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
+interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppCadenciasRoute: typeof AuthenticatedAppCadenciasRoute
+  AuthenticatedAppCampanhasRoute: typeof AuthenticatedAppCampanhasRoute
+  AuthenticatedAppCockpitRoute: typeof AuthenticatedAppCockpitRoute
+  AuthenticatedAppContatosRoute: typeof AuthenticatedAppContatosRoute
+  AuthenticatedAppConversasRoute: typeof AuthenticatedAppConversasRoute
+  AuthenticatedAppFunilRoute: typeof AuthenticatedAppFunilRoute
+  AuthenticatedAppPlanosRoute: typeof AuthenticatedAppPlanosRoute
+  AuthenticatedAppPrivacidadeRoute: typeof AuthenticatedAppPrivacidadeRoute
+  AuthenticatedAppTemplatesRoute: typeof AuthenticatedAppTemplatesRoute
+  AuthenticatedAppWhatsappRoute: typeof AuthenticatedAppWhatsappRoute
+}
+
+const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppCadenciasRoute: AuthenticatedAppCadenciasRoute,
+  AuthenticatedAppCampanhasRoute: AuthenticatedAppCampanhasRoute,
+  AuthenticatedAppCockpitRoute: AuthenticatedAppCockpitRoute,
+  AuthenticatedAppContatosRoute: AuthenticatedAppContatosRoute,
+  AuthenticatedAppConversasRoute: AuthenticatedAppConversasRoute,
+  AuthenticatedAppFunilRoute: AuthenticatedAppFunilRoute,
+  AuthenticatedAppPlanosRoute: AuthenticatedAppPlanosRoute,
+  AuthenticatedAppPrivacidadeRoute: AuthenticatedAppPrivacidadeRoute,
+  AuthenticatedAppTemplatesRoute: AuthenticatedAppTemplatesRoute,
+  AuthenticatedAppWhatsappRoute: AuthenticatedAppWhatsappRoute,
+}
+
+const AuthenticatedAppRouteWithChildren =
+  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
