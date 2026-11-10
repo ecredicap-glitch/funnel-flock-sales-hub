@@ -25,7 +25,7 @@ export function ModulePlaceholder({
   emptyDescription: string;
   stage: number;
   features: string[];
-  next?: { label: string; to: "/whatsapp" | "/contatos" | "/templates" | "/campanhas" | "/configuracoes" };
+  next?: { label: string; to: "/whatsapp" | "/contatos" | "/templates" | "/campanhas" | "/configuracoes" } | undefined;
 }) {
   return (
     <>

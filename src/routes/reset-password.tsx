@@ -38,12 +38,12 @@ function ResetPassword() {
     const form = new FormData(e.currentTarget);
     const password = String(form.get("password"));
     const confirm = String(form.get("confirm"));
-    if (password.length < 8) return toast.error("A senha precisa ter pelo menos 8 caracteres.");
-    if (password !== confirm) return toast.error("As senhas não coincidem.");
+    if (password.length < 8) { toast.error("A senha precisa ter pelo menos 8 caracteres."); return; }
+    if (password !== confirm) { toast.error("As senhas não coincidem."); return; }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Senha atualizada.");
     navigate({ to: "/cockpit", replace: true });
   }

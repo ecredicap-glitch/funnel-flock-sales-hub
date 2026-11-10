@@ -222,7 +222,7 @@ function WorkspaceSwitcher() {
     setSaving(true);
     const { data, error } = await supabase.rpc("create_workspace", { _name: name.trim() });
     setSaving(false);
-    if (error) return toast.error("Não foi possível criar o workspace.");
+    if (error) { toast.error("Não foi possível criar o workspace."); return; }
     await queryClient.invalidateQueries({ queryKey: ["memberships"] });
     setCurrentId(data);
     setDialogOpen(false);

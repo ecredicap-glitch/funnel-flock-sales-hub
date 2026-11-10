@@ -79,7 +79,7 @@ function WorkspaceTab() {
     setSaving(true);
     const { error } = await supabase.from("workspaces").update({ name: name.trim() }).eq("id", current.workspace.id);
     setSaving(false);
-    if (error) return toast.error("Não foi possível salvar.");
+    if (error) { toast.error("Não foi possível salvar."); return; }
     await queryClient.invalidateQueries({ queryKey: ["memberships"] });
     toast.success("Workspace atualizado.");
   }
@@ -127,7 +127,7 @@ function ProfileTab() {
     setSaving(true);
     const { error } = await supabase.from("profiles").update({ full_name: name.trim() || null }).eq("id", userId);
     setSaving(false);
-    if (error) return toast.error("Não foi possível salvar.");
+    if (error) { toast.error("Não foi possível salvar."); return; }
     await queryClient.invalidateQueries({ queryKey: ["profile", userId] });
     toast.success("Perfil atualizado.");
   }
