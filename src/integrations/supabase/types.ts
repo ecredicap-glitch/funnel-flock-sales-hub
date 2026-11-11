@@ -14,6 +14,146 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_list_members: {
+        Row: {
+          added_at: string
+          contact_id: string
+          list_id: string
+          workspace_id: string
+        }
+        Insert: {
+          added_at?: string
+          contact_id: string
+          list_id: string
+          workspace_id: string
+        }
+        Update: {
+          added_at?: string
+          contact_id?: string
+          list_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_list_members_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_list_members_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_list_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_lists: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_lists_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          city: string | null
+          created_at: string
+          created_by: string | null
+          custom_fields: Json
+          email: string | null
+          id: string
+          name: string | null
+          opt_in: boolean
+          opt_in_at: string | null
+          opt_in_source: string | null
+          phone: string
+          status: Database["public"]["Enums"]["contact_status"]
+          status_reason: string | null
+          tags: string[]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json
+          email?: string | null
+          id?: string
+          name?: string | null
+          opt_in?: boolean
+          opt_in_at?: string | null
+          opt_in_source?: string | null
+          phone: string
+          status?: Database["public"]["Enums"]["contact_status"]
+          status_reason?: string | null
+          tags?: string[]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json
+          email?: string | null
+          id?: string
+          name?: string | null
+          opt_in?: boolean
+          opt_in_at?: string | null
+          opt_in_source?: string | null
+          phone?: string
+          status?: Database["public"]["Enums"]["contact_status"]
+          status_reason?: string | null
+          tags?: string[]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
@@ -124,6 +264,7 @@ export type Database = {
       shares_workspace_with: { Args: { _other: string }; Returns: boolean }
     }
     Enums: {
+      contact_status: "active" | "unsubscribed" | "blocked"
       member_role: "admin" | "operator"
     }
     CompositeTypes: {
@@ -252,6 +393,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      contact_status: ["active", "unsubscribed", "blocked"],
       member_role: ["admin", "operator"],
     },
   },
