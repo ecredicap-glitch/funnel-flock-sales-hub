@@ -45,6 +45,7 @@ function ContatosPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [listFilter, setListFilter] = useState<string | null>(null);
+  const [tab, setTab] = useState("contatos");
 
   const contacts = useQuery({
     queryKey: ["contacts", ws],
@@ -141,7 +142,7 @@ function ContatosPage() {
           <NewContactDialog ws={ws} userId={userId} onDone={refresh} />
           <ImportContactsDialog workspaceId={ws} userId={userId} lists={lists.data ?? []} onDone={refresh} />
         </>} />
-      <Tabs defaultValue="contatos">
+      <Tabs value={tab} onValueChange={setTab}>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
             <TabsTrigger value="contatos">Contatos</TabsTrigger>
@@ -159,7 +160,7 @@ function ContatosPage() {
         )}
         <TabsContent value="contatos">{contacts.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> : table(active)}</TabsContent>
         <TabsContent value="bloqueados">{table(blocked)}</TabsContent>
-        <TabsContent value="listas"><ListsPanel ws={ws} lists={lists.data ?? []} onDone={refresh} onOpen={setListFilter} /></TabsContent>
+        <TabsContent value="listas"><ListsPanel ws={ws} lists={lists.data ?? []} onDone={refresh} onOpen={(id) => { setListFilter(id); setTab("contatos"); }} /></TabsContent>
       </Tabs>
     </div>
   );
