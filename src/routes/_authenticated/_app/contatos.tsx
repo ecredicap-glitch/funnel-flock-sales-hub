@@ -77,17 +77,17 @@ function ContatosPage() {
 
   async function setStatus(c: Contact, status: Status) {
     const { error } = await supabase.from("contacts").update({ status, status_reason: status === "active" ? null : "Manual" }).eq("id", c.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`Contato marcado como ${STATUS_LABEL[status].toLowerCase()}`); refresh();
   }
   async function remove(c: Contact) {
     const { error } = await supabase.from("contacts").delete().eq("id", c.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Contato excluído"); refresh();
   }
   async function addToList(c: Contact, listId: string) {
     const { error } = await supabase.from("contact_list_members").upsert({ contact_id: c.id, list_id: listId, workspace_id: ws }, { ignoreDuplicates: true });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Adicionado à lista"); refresh();
   }
 
@@ -172,13 +172,13 @@ function NewContactDialog({ ws, userId, onDone }: { ws: string; userId: string; 
   const [optIn, setOptIn] = useState(false);
   async function save() {
     const phone = normalizePhone(f.phone);
-    if (!phone) return toast.error("Telefone inválido", { description: "Use DDD + número, ex.: (91) 98888-7777." });
+    if (!phone) { toast.error("Telefone inválido", { description: "Use DDD + número, ex.: (91) 98888-7777." }); return; }
     const { error } = await supabase.from("contacts").insert({
       workspace_id: ws, phone, name: f.name || null, email: f.email || null, city: f.city || null,
       tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean), created_by: userId,
       opt_in: optIn, opt_in_source: optIn ? f.source : null, opt_in_at: optIn ? new Date().toISOString() : null,
     });
-    if (error) return toast.error(error.code === "23505" ? "Esse telefone já está na base" : error.message);
+    if (error) { toast.error(error.code === "23505" ? "Esse telefone já está na base" : error.message); return; }
     toast.success("Contato adicionado"); setOpen(false); setF({ name: "", phone: "", email: "", city: "", tags: "", source: "" }); setOptIn(false); onDone();
   }
   const field = (k: keyof typeof f, label: string, ph?: string) => (
@@ -209,12 +209,12 @@ function ListsPanel({ ws, lists, onDone, onOpen }: {
   const [name, setName] = useState("");
   async function create() {
     const { error } = await supabase.from("contact_lists").insert({ workspace_id: ws, name: name.trim() });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setName(""); onDone();
   }
   async function del(id: string) {
     const { error } = await supabase.from("contact_lists").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     onDone();
   }
   return (
