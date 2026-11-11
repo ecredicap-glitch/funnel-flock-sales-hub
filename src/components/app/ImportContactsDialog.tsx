@@ -45,7 +45,7 @@ export function ImportContactsDialog({ workspaceId, userId, lists, onDone }: {
 
   async function onFile(f: File) {
     const wb = XLSX.read(await f.arrayBuffer());
-    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0] ?? ""]!, { defval: "" });
     const hs = Object.keys(data[0] ?? {});
     setRows(data); setHeaders(hs);
     const m = { phone: NONE, name: NONE, email: NONE, city: NONE, tags: NONE } as Record<FieldKey, string>;
