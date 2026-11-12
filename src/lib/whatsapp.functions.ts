@@ -18,14 +18,14 @@ export const whatsappAction = createServerFn({ method: "POST" })
     if (!base || !key) return { state: "none", qr: null, number: null, error: "Gateway não configurado." };
     const name = `zp-${data.workspaceId.slice(0, 8)}`;
     const call = async (path: string, method = "GET", body?: unknown) => {
-      const r = await fetch(`${base}${path}`, { method, headers: { apikey: key, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      const r = await fetch(`${base}${path}`, { method, headers: { apikey: key, "content-type": "application/json" }, body: body ? JSON.stringify(body) : null });
       const j = (await r.json().catch(() => ({}))) as any;
       return { ok: r.ok, status: r.status, j };
     };
     try {
       const list = await call(`/instance/fetchInstances?instanceName=${name}`);
       const inst = Array.isArray(list.j) ? list.j.find((i: any) => (i.name ?? i.instance?.instanceName) === name) : null;
-      const number = inst?.ownerJid ? String(inst.ownerJid).split("@")[0] : null;
+      const number: string | null = inst?.ownerJid ? (String(inst.ownerJid).split("@")[0] ?? null) : null;
       if (data.action === "logout") {
         if (inst) await call(`/instance/logout/${name}`, "DELETE");
         return { state: "close", qr: null, number: null };
