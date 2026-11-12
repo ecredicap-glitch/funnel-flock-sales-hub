@@ -25,6 +25,7 @@ import { Route as AuthenticatedAppPlanosRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAppPrivacidadeRouteImport } from './routes/_authenticated/_app/privacidade'
 import { Route as AuthenticatedAppTemplatesRouteImport } from './routes/_authenticated/_app/templates'
 import { Route as AuthenticatedAppWhatsappRouteImport } from './routes/_authenticated/_app/whatsapp'
+import { Route as ApiPublicJobsSendQueueRouteImport } from './routes/api/public/jobs/send-queue'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -112,6 +113,11 @@ const AuthenticatedAppWhatsappRoute =
     path: '/whatsapp',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const ApiPublicJobsSendQueueRoute = ApiPublicJobsSendQueueRouteImport.update({
+  id: '/api/public/jobs/send-queue',
+  path: '/api/public/jobs/send-queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof AuthenticatedAppPrivacidadeRoute
   '/templates': typeof AuthenticatedAppTemplatesRoute
   '/whatsapp': typeof AuthenticatedAppWhatsappRoute
+  '/api/public/jobs/send-queue': typeof ApiPublicJobsSendQueueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/privacidade': typeof AuthenticatedAppPrivacidadeRoute
   '/templates': typeof AuthenticatedAppTemplatesRoute
   '/whatsapp': typeof AuthenticatedAppWhatsappRoute
+  '/api/public/jobs/send-queue': typeof ApiPublicJobsSendQueueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/privacidade': typeof AuthenticatedAppPrivacidadeRoute
   '/_authenticated/_app/templates': typeof AuthenticatedAppTemplatesRoute
   '/_authenticated/_app/whatsapp': typeof AuthenticatedAppWhatsappRoute
+  '/api/public/jobs/send-queue': typeof ApiPublicJobsSendQueueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/templates'
     | '/whatsapp'
+    | '/api/public/jobs/send-queue'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/templates'
     | '/whatsapp'
+    | '/api/public/jobs/send-queue'
   id:
     | '__root__'
     | '/'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/privacidade'
     | '/_authenticated/_app/templates'
     | '/_authenticated/_app/whatsapp'
+    | '/api/public/jobs/send-queue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicJobsSendQueueRoute: typeof ApiPublicJobsSendQueueRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -338,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppWhatsappRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/api/public/jobs/send-queue': {
+      id: '/api/public/jobs/send-queue'
+      path: '/api/public/jobs/send-queue'
+      fullPath: '/api/public/jobs/send-queue'
+      preLoaderRoute: typeof ApiPublicJobsSendQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -388,6 +408,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicJobsSendQueueRoute: ApiPublicJobsSendQueueRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
