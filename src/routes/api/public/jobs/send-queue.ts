@@ -46,7 +46,7 @@ export const Route = createFileRoute("/api/public/jobs/send-queue")({
           else if (attempts < MAX_ATTEMPTS) await db.from("campaign_messages").update({ attempts, error: err }).eq("id", msg.id);
           else { failed++; await db.from("campaign_messages").update({ status: "failed", attempts, error: err }).eq("id", msg.id); }
           const d = nextDelaySeconds(c.sent_in_batch + 1, c);
-          const upd: Record<string, unknown> = { sent, failed, sent_in_batch: d.resetBatch ? 0 : c.sent_in_batch + 1, next_send_at: new Date(now.getTime() + d.seconds * 1000).toISOString() };
+          const upd: { sent: number; failed: number; sent_in_batch: number; next_send_at: string; status?: "paused"; pause_reason?: string } = { sent, failed, sent_in_batch: d.resetBatch ? 0 : c.sent_in_batch + 1, next_send_at: new Date(now.getTime() + d.seconds * 1000).toISOString() };
           if (shouldAutoPause(sent, failed)) Object.assign(upd, { status: "paused", pause_reason: "Taxa de falhas acima de 15%." });
           await db.from("campaigns").update(upd).eq("id", c.id);
           results.push(`${c.id}:${ok ? "sent" : "fail"}`);
