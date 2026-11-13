@@ -37,3 +37,4 @@ use the editor.
 - Signed-in pages live under `src/routes/_authenticated/_app/` (gate in `_authenticated/route.tsx`, `ssr: false`; shell + workspace context in `_app.tsx`) — the session is in browser storage.
 - Navigation entries are defined once in `src/lib/nav.ts` and feed the rail, bottom bar and command palette — keeps the three in sync.
 - WhatsApp access goes through a `WhatsAppProvider` interface with swappable adapters; gateway credentials are server-only — the provider may change later.
+- AI Gateway calls live only in `src/lib/ai/gateway.server.ts` (`aiObject`: Responses API, streamed, structured output) and are exposed via authenticated server fns in `src/lib/ai.functions.ts` — keeps the key and prompts server-side.

@@ -7,3 +7,10 @@
 - [ ] 5. Caixa de entrada em tempo real + classificação por IA
 - [ ] 6. Funil Kanban + cadências
 - [ ] 7. Saúde do número, relatórios, auditoria, LGPD, créditos e convites de equipe
+
+## Extras
+- [x] Disparo de teste rápido (tela WhatsApp)
+- [x] Classificador de mensagens com IA (tela Conversas)
+- [x] Prévia de templates com dados de exemplo (Templates e Campanhas)
+- [x] Gerador de variações com IA na criação de campanha
+- [ ] Ícones (i) nas demais telas

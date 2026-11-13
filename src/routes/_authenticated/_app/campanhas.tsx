@@ -2,7 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pause, Play, Plus, X, Loader2 } from "lucide-react";
+import { Pause, Play, Plus, X, Loader2, Wand2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { generateVariations } from "@/lib/ai.functions";
+import { TemplatePreview } from "@/components/app/TemplatePreview";
+import { InfoTip, DisabledReason } from "@/components/app/InfoTip";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/lib/workspace";
 import { render } from "@/lib/spintax";
@@ -45,7 +49,7 @@ function CampanhasPage() {
     if (!form || !form.name || !form.list_id || !form.body) { toast.error("Preencha nome, lista e mensagem."); return; }
     setBusy(true);
     try {
-      const { data: mem } = await supabase.from("contact_list_members").select("contacts(id,name,phone,city,opt_in,status)").eq("list_id", form.list_id);
+      const { data: mem } = await supabase.from("contact_list_members").select("contacts(id,name,phone,city,opt_in,status,custom_fields)").eq("list_id", form.list_id);
       const since = new Date(Date.now() - form.dedupe_days * 86400_000).toISOString();
       const { data: recent } = await supabase.from("campaign_messages").select("phone").eq("workspace_id", ws).eq("status", "sent").gte("sent_at", since);
       const recentSet = new Set((recent ?? []).map((r) => r.phone));
@@ -55,7 +59,7 @@ function CampanhasPage() {
       const { name, list_id, body, ...rules } = form;
       const { data: camp, error } = await supabase.from("campaigns").insert({ workspace_id: ws, name, list_id, body, ...rules, total: contacts.length, status: "draft" }).select("id").single();
       if (error || !camp) throw error;
-      const rows = contacts.map((c) => ({ workspace_id: ws, campaign_id: camp.id, contact_id: c.id, phone: c.phone, body: render(body, { nome: c.name?.split(" ")[0], cidade: c.city }) }));
+      const rows = contacts.map((c) => ({ workspace_id: ws, campaign_id: camp.id, contact_id: c.id, phone: c.phone, body: render(body, { ...((c.custom_fields ?? {}) as Record<string, string>), nome: c.name?.split(" ")[0], cidade: c.city }) }));
       for (let i = 0; i < rows.length; i += 500) { const { error: e } = await supabase.from("campaign_messages").insert(rows.slice(i, i + 500)); if (e) throw e; }
       toast.success(`Campanha criada com ${contacts.length} contatos. Clique em Iniciar.`); setForm(null); refresh();
     } catch (e: any) { toast.error(e?.message ?? "Erro ao criar campanha."); } finally { setBusy(false); }
@@ -81,7 +85,8 @@ function CampanhasPage() {
               {tpls.data?.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <Textarea rows={6} placeholder="{Olá|Oi} {{nome}}…" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
-            {form.body && <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-primary/15 p-3 text-sm">{render(form.body, { nome: "Maria" })}</div>}
+            <AiWriter ws={ws} onPick={(body) => setForm({ ...form, body })} />
+            {form.body && <TemplatePreview body={form.body} />}
           </div>
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Regras de envio (anti-banimento)</p>
@@ -121,4 +126,43 @@ function CampanhasPage() {
 }
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="flex items-center gap-2"><span className="w-56 shrink-0">{label}</span><span className="flex flex-1 items-center gap-2">{children}</span></label>;
+}
+
+function AiWriter({ ws, onPick }: { ws: string; onPick: (body: string) => void }) {
+  const gen = useServerFn(generateVariations);
+  const [open, setOpen] = useState(false);
+  const [objective, setObjective] = useState("");
+  const [audience, setAudience] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [out, setOut] = useState<{ title: string; body: string }[]>([]);
+  const reason = objective.trim().length < 3 ? "Descreva o objetivo da campanha." : audience.trim().length < 3 ? "Descreva o público que autorizou receber mensagens." : null;
+  async function go() {
+    setBusy(true);
+    try {
+      const r = await gen({ data: { workspaceId: ws, objective, audience } });
+      if (r.error) toast.error(r.error); else setOut(r.variations);
+    } catch { toast.error("Falha ao falar com a IA."); }
+    setBusy(false);
+  }
+  if (!open) return <Button variant="outline" size="sm" onClick={() => setOpen(true)}><Wand2 /> Escrever com IA</Button>;
+  return (
+    <div className="space-y-2 rounded-2xl border p-3">
+      <p className="flex items-center gap-1 text-sm font-semibold">Gerar variações com IA
+        <InfoTip>A IA cria 3 mensagens diferentes, já com {"{{nome}}"} e variações {"{a|b}"}, em tom consultivo e sem prometer aprovação. Revise antes de usar.</InfoTip>
+      </p>
+      <Textarea rows={2} placeholder="Objetivo (ex.: oferecer análise gratuita de crédito consignado)" value={objective} onChange={(e) => setObjective(e.target.value)} />
+      <Textarea rows={2} placeholder="Público que consentiu (ex.: aposentados do INSS em Belém que pediram simulação no site)" value={audience} onChange={(e) => setAudience(e.target.value)} />
+      <div className="flex gap-2">
+        <DisabledReason reason={reason}><Button size="sm" disabled={!!reason || busy} onClick={go}>{busy ? <Loader2 className="animate-spin" /> : <Wand2 />} Gerar 3 variações</Button></DisabledReason>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Fechar</Button>
+      </div>
+      {out.map((v, i) => (
+        <div key={i} className="rounded-xl bg-muted/40 p-3 text-sm">
+          <p className="mb-1 text-xs font-semibold text-primary">{v.title}</p>
+          <p className="whitespace-pre-wrap">{v.body}</p>
+          <Button className="mt-2" size="sm" variant="outline" onClick={() => onPick(v.body)}>Usar esta mensagem</Button>
+        </div>
+      ))}
+    </div>
+  );
 }
