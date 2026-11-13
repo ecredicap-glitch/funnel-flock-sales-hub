@@ -49,3 +49,23 @@ export const whatsappAction = createServerFn({ method: "POST" })
       return { state: "none", qr: null, number: null, error: "Gateway indisponível." };
     }
   });
+
+const testInput = z.object({ workspaceId: z.string().uuid(), phone: z.string().regex(/^55\d{10,11}$/), text: z.string().min(1).max(1000) });
+
+/** Disparo de teste rápido: envia 1 mensagem para um número informado (somente admin). */
+export const sendTestMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => testInput.parse(d))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
+    const { data: admin } = await context.supabase.rpc("has_workspace_role", { _workspace_id: data.workspaceId, _role: "admin" } as any);
+    if (!admin) return { ok: false, error: "Apenas administradores podem enviar testes." };
+    const base = (process.env["EVOLUTION_API_URL"] ?? "").replace(/\/$/, "");
+    const key = process.env["EVOLUTION_API_KEY"] ?? "";
+    if (!base || !key) return { ok: false, error: "Gateway não configurado." };
+    const name = `zp-${data.workspaceId.slice(0, 8)}`;
+    try {
+      const r = await fetch(`${base}/message/sendText/${name}`, { method: "POST", headers: { apikey: key, "content-type": "application/json" }, body: JSON.stringify({ number: data.phone, text: data.text, delay: 1200 }) });
+      if (!r.ok) { console.error("test send", r.status, await r.text().catch(() => "")); return { ok: false, error: "O WhatsApp recusou o envio. Confira se o número existe no WhatsApp." }; }
+      return { ok: true };
+    } catch (e) { console.error(e); return { ok: false, error: "Gateway indisponível." }; }
+  });
