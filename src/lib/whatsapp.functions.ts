@@ -57,7 +57,7 @@ export const sendTestMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => testInput.parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const { data: admin } = await context.supabase.rpc("has_workspace_role", { _workspace_id: data.workspaceId, _role: "admin" } as any);
+    const { data: admin } = await context.supabase.rpc("has_workspace_role", { _workspace_id: data.workspaceId, _role: "admin" });
     if (!admin) return { ok: false, error: "Apenas administradores podem enviar testes." };
     const base = (process.env["EVOLUTION_API_URL"] ?? "").replace(/\/$/, "");
     const key = process.env["EVOLUTION_API_KEY"] ?? "";
