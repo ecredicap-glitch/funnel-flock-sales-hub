@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Sparkles, Trash2, Shuffle } from "lucide-react";
+import { Plus, Sparkles, Trash2 } from "lucide-react";
+import { TemplatePreview } from "@/components/app/TemplatePreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/lib/workspace";
-import { render } from "@/lib/spintax";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,6 @@ function TemplatesPage() {
     queryFn: async () => (await supabase.from("templates").select("*").eq("workspace_id", ws).order("created_at", { ascending: false })).data ?? [],
   });
   const [edit, setEdit] = useState<{ id?: string; name: string; category: string; body: string } | null>(null);
-  const [seed, setSeed] = useState(0);
   const refresh = () => qc.invalidateQueries({ queryKey: ["templates", ws] });
 
   async function save() {
@@ -78,10 +77,7 @@ function TemplatesPage() {
             <p className="text-xs text-muted-foreground">Tom consultivo: nunca prometa aprovação garantida.</p>
             <div className="flex gap-2"><Button onClick={save}>Salvar</Button><Button variant="ghost" onClick={() => setEdit(null)}>Cancelar</Button></div>
           </div>
-          <div>
-            <div className="mb-2 flex items-center justify-between"><p className="text-sm font-semibold">Pré-visualização</p><Button size="sm" variant="ghost" onClick={() => setSeed(seed + 1)}><Shuffle /> Outra variação</Button></div>
-            <div key={seed} className="max-w-sm whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-primary/15 p-4 text-sm">{render(edit.body || "…", { nome: "Maria" })}</div>
-          </div>
+          <TemplatePreview body={edit.body} />
         </section>
       )}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
