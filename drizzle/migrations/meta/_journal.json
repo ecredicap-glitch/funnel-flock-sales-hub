@@ -22,6 +22,13 @@
       "when": 1794492170544,
       "tag": "0002_templates_campaigns_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794659087026,
+      "tag": "0003_inbox_messages",
+      "breakpoints": true
     }
   ]
 }
