@@ -424,6 +424,60 @@ export type Database = {
           },
         ]
       }
+      wa_messages: {
+        Row: {
+          body: string
+          contact_id: string | null
+          created_at: string
+          direction: string
+          external_id: string | null
+          id: string
+          phone: string
+          push_name: string | null
+          read: boolean
+          workspace_id: string
+        }
+        Insert: {
+          body?: string
+          contact_id?: string | null
+          created_at?: string
+          direction?: string
+          external_id?: string | null
+          id?: string
+          phone: string
+          push_name?: string | null
+          read?: boolean
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          contact_id?: string | null
+          created_at?: string
+          direction?: string
+          external_id?: string | null
+          id?: string
+          phone?: string
+          push_name?: string | null
+          read?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_messages_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           created_at: string

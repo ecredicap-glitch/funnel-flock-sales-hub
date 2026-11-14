@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { InfoTip, DisabledReason } from "@/components/app/InfoTip";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Inbox } from "@/components/app/Inbox";
 
 export const Route = createFileRoute("/_authenticated/_app/conversas")({
   head: () => ({
@@ -44,7 +45,8 @@ function ConversasPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Caixa de entrada" title="Conversas" description="Cole a mensagem de um cliente e a IA diz a intenção e o que fazer em seguida." />
+      <PageHeader eyebrow="Caixa de entrada" title="Conversas" description="Mensagens dos clientes chegando em tempo real, com resposta sugerida pela IA." />
+      {ws && <Inbox ws={ws} isAdmin={current?.role === "admin"} />}
       <section className="glass grid max-w-5xl gap-6 rounded-3xl p-6 lg:grid-cols-2">
         <div className="space-y-3">
           <p className="flex items-center gap-1 font-semibold">Classificar mensagem recebida
@@ -79,7 +81,6 @@ function ConversasPage() {
           )}
         </div>
       </section>
-      <p className="mt-4 max-w-5xl text-xs text-muted-foreground">A caixa de entrada com as mensagens chegando sozinhas em tempo real entra na etapa 5.</p>
     </>
   );
 }
