@@ -55,7 +55,7 @@ function FunilPage() {
   }
   async function save(l: Lead) {
     const { error } = await supabase.from("contacts").update({ stage: l.stage, product: l.product, deal_value: l.deal_value }).eq("id", l.id);
-    if (error) return toast.error("Erro ao salvar.");
+    if (error) { toast.error("Erro ao salvar."); return; }
     toast.success("Lead atualizado."); setEdit(null); qc.invalidateQueries({ queryKey: key });
   }
 

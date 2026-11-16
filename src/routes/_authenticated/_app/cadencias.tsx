@@ -51,11 +51,11 @@ function CadenciasPage() {
 
   async function create() {
     if (!form) return;
-    if (!form.name.trim() || form.steps.length === 0 || form.steps.some((s) => !s.body.trim())) return toast.error("Dê um nome e preencha todas as mensagens.");
+    if (!form.name.trim() || form.steps.length === 0 || form.steps.some((s) => !s.body.trim())) { toast.error("Dê um nome e preencha todas as mensagens."); return; }
     setBusy("create");
     const { error } = await supabase.from("cadences").insert({ workspace_id: ws, name: form.name.trim(), steps: form.steps, window_start: form.window_start, window_end: form.window_end, daily_limit: form.daily_limit });
     setBusy(null);
-    if (error) return toast.error("Erro ao criar cadência.");
+    if (error) { toast.error("Erro ao criar cadência."); return; }
     toast.success("Cadência criada. Agora inscreva uma lista."); setForm(null); refresh();
   }
   async function enroll(c: { id: string; steps: unknown }) {
@@ -64,7 +64,7 @@ function CadenciasPage() {
     try {
       const { data: mem } = await supabase.from("contact_list_members").select("contacts(id,phone,opt_in,status)").eq("list_id", listId);
       const ok = (mem ?? []).map((m) => m.contacts).filter((x): x is NonNullable<typeof x> => !!x && x.opt_in && x.status === "active");
-      if (!ok.length) return toast.error("Nenhum contato elegível na lista (precisa de opt-in e estar ativo).");
+      if (!ok.length) { toast.error("Nenhum contato elegível na lista (precisa de opt-in e estar ativo)."); return; }
       const at = firstCadenceRun(c.steps as CadenceStep[], new Date()).toISOString();
       const rows = ok.map((x) => ({ workspace_id: ws, cadence_id: c.id, contact_id: x.id, phone: x.phone, next_run_at: at }));
       for (let i = 0; i < rows.length; i += 500) {
