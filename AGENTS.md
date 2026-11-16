@@ -38,3 +38,5 @@ use the editor.
 - Navigation entries are defined once in `src/lib/nav.ts` and feed the rail, bottom bar and command palette — keeps the three in sync.
 - WhatsApp access goes through a `WhatsAppProvider` interface with swappable adapters; gateway credentials are server-only — the provider may change later.
 - AI Gateway calls live only in `src/lib/ai/gateway.server.ts` (`aiObject`: Responses API, streamed, structured output) and are exposed via authenticated server fns in `src/lib/ai.functions.ts` — keeps the key and prompts server-side.
+- Funnel stage moves and cadence stops on reply/opt-out run in DB triggers (`wa_inbound_automation`, `campaign_sent_automation`, `contacts_stage_guard`) — they fire no matter which code path writes the row.
+- One cron route (`/api/public/jobs/send-queue`, every minute) sends both campaign messages and cadence follow-ups, max one send per workspace per tick — keeps sends from the same number sequential.

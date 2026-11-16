@@ -25,3 +25,17 @@ export function shouldAutoPause(sent: number, failed: number) {
   return n >= 10 && failed / n > 0.15;
 }
 export const MAX_ATTEMPTS = 3; // 1 try + 2 retries
+
+export type CadenceStep = { wait_hours: number; body: string };
+/** After sending step `sentIndex`, returns when the next step runs (or done). */
+export function advanceCadence(steps: CadenceStep[], sentIndex: number, now: Date) {
+  const next = sentIndex + 1;
+  if (next >= steps.length) return { done: true as const, step: next, nextRunAt: null };
+  const h = Math.max(0, Number(steps[next]!.wait_hours) || 0);
+  return { done: false as const, step: next, nextRunAt: new Date(now.getTime() + h * 3600_000) };
+}
+/** First run time for a new enrollment. */
+export function firstCadenceRun(steps: CadenceStep[], now: Date) {
+  const h = Math.max(0, Number(steps[0]?.wait_hours) || 0);
+  return new Date(now.getTime() + h * 3600_000);
+}

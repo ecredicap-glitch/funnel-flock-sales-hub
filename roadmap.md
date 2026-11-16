@@ -5,7 +5,7 @@
 - [x] 3. Camada de provedor (Evolution) + tela WhatsApp (QR, status) + webhook
 - [x] 4. Templates, editor com spintax e campanhas com fila anti-banimento
 - [x] 5. Caixa de entrada em tempo real + classificação por IA
-- [ ] 6. Funil Kanban + cadências
+- [x] 6. Funil Kanban + cadências (aguardando validação)
 - [ ] 7. Saúde do número, relatórios, auditoria, LGPD, créditos e convites de equipe
 
 ## Extras
@@ -14,3 +14,5 @@
 - [x] Prévia de templates com dados de exemplo (Templates e Campanhas)
 - [x] Gerador de variações com IA na criação de campanha
 - [ ] Ícones (i) nas demais telas
+- [x] Recebimento de mensagens ligado no número da Ecredi
+- [x] Agendador automático (a cada minuto) para campanhas e cadências

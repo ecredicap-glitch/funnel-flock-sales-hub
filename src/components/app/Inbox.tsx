@@ -65,7 +65,13 @@ export function Inbox({ ws, isAdmin }: { ws: string; isAdmin: boolean }) {
     setBusy("ai");
     try {
       const r = await classify({ data: { workspaceId: ws, message: last.body } });
-      if (r.result) { setText(r.result.suggested_reply); toast.success(`Intenção: ${r.result.intent} — ${r.result.next_action}`); } else toast.error(r.error ?? "Falha na IA.");
+      if (r.result) {
+        setText(r.result.suggested_reply); toast.success(`Intenção: ${r.result.intent} — ${r.result.next_action}`);
+        if (r.result.intent === "interessado") {
+          const { data: moved } = await supabase.from("contacts").update({ stage: "interessado" }).eq("workspace_id", ws).eq("phone", last.phone).in("stage", ["novo", "contatado", "respondeu"]).select("id");
+          if (moved?.length) toast.success("Lead movido para Interessado no Funil.");
+        }
+      } else toast.error(r.error ?? "Falha na IA.");
     } catch { toast.error("Falha na IA."); }
     setBusy(null);
   }

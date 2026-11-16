@@ -14,6 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
+      cadence_enrollments: {
+        Row: {
+          attempts: number
+          cadence_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          last_sent_at: string | null
+          next_run_at: string
+          phone: string
+          status: string
+          step: number
+          stop_reason: string | null
+          workspace_id: string
+        }
+        Insert: {
+          attempts?: number
+          cadence_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          last_sent_at?: string | null
+          next_run_at?: string
+          phone: string
+          status?: string
+          step?: number
+          stop_reason?: string | null
+          workspace_id: string
+        }
+        Update: {
+          attempts?: number
+          cadence_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          last_sent_at?: string | null
+          next_run_at?: string
+          phone?: string
+          status?: string
+          step?: number
+          stop_reason?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadence_enrollments_cadence_id_fkey"
+            columns: ["cadence_id"]
+            isOneToOne: false
+            referencedRelation: "cadences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadence_enrollments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadence_enrollments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cadences: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          daily_limit: number
+          id: string
+          name: string
+          steps: Json
+          window_days: number[]
+          window_end: number
+          window_start: number
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          daily_limit?: number
+          id?: string
+          name: string
+          steps?: Json
+          window_days?: number[]
+          window_end?: number
+          window_start?: number
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          daily_limit?: number
+          id?: string
+          name?: string
+          steps?: Json
+          window_days?: number[]
+          window_end?: number
+          window_start?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadences_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_messages: {
         Row: {
           attempts: number
@@ -258,13 +375,18 @@ export type Database = {
           created_at: string
           created_by: string | null
           custom_fields: Json
+          deal_value: number | null
           email: string | null
           id: string
+          last_message_at: string | null
           name: string | null
           opt_in: boolean
           opt_in_at: string | null
           opt_in_source: string | null
           phone: string
+          product: string | null
+          stage: string
+          stage_changed_at: string
           status: Database["public"]["Enums"]["contact_status"]
           status_reason: string | null
           tags: string[]
@@ -276,13 +398,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
+          deal_value?: number | null
           email?: string | null
           id?: string
+          last_message_at?: string | null
           name?: string | null
           opt_in?: boolean
           opt_in_at?: string | null
           opt_in_source?: string | null
           phone: string
+          product?: string | null
+          stage?: string
+          stage_changed_at?: string
           status?: Database["public"]["Enums"]["contact_status"]
           status_reason?: string | null
           tags?: string[]
@@ -294,13 +421,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           custom_fields?: Json
+          deal_value?: number | null
           email?: string | null
           id?: string
+          last_message_at?: string | null
           name?: string | null
           opt_in?: boolean
           opt_in_at?: string | null
           opt_in_source?: string | null
           phone?: string
+          product?: string | null
+          stage?: string
+          stage_changed_at?: string
           status?: Database["public"]["Enums"]["contact_status"]
           status_reason?: string | null
           tags?: string[]
