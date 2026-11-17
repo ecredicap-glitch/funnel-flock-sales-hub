@@ -35,6 +35,19 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook")({
           }, { onConflict: "workspace_id,external_id", ignoreDuplicates: true });
           if (!fromMe && contact && OPT_OUT.test(body)) {
             await supabaseAdmin.from("contacts").update({ status: "unsubscribed", status_reason: "Pediu para sair pelo WhatsApp" }).eq("id", contact.id);
+          } else if (!fromMe) {
+            // Se o Piloto Automático estiver ligado neste workspace, responde sozinho via IA
+            try {
+              const { processAutopilotReply } = await import("@/lib/autopilot.server");
+              await processAutopilotReply({
+                workspaceId: p.data.ws,
+                phone,
+                incomingText: body,
+                contactId: contact?.id ?? null,
+              });
+            } catch (autoErr) {
+              console.error("Autopilot execution error:", autoErr);
+            }
           }
         }
         return new Response("ok");

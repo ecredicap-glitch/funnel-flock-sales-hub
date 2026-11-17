@@ -41,7 +41,7 @@ function TemplatesPage() {
   const qc = useQueryClient();
   const { data = [] } = useQuery({
     queryKey: ["templates", ws], enabled: !!ws,
-    queryFn: async () => (await supabase.from("templates").select("*").eq("workspace_id", ws).order("created_at", { ascending: false })).data ?? [],
+    queryFn: async () => (await supabase.from("templates").select("*").eq("workspace_id", ws).neq("category", "autopilot").order("created_at", { ascending: false })).data ?? [],
   });
   const [edit, setEdit] = useState<{ id?: string; name: string; category: string; body: string } | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ["templates", ws] });

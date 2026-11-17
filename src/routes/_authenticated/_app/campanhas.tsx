@@ -41,7 +41,7 @@ function CampanhasPage() {
   const camps = useQuery({ queryKey: ["campaigns", ws], enabled: !!ws, refetchInterval: 15000,
     queryFn: async () => (await supabase.from("campaigns").select("*").eq("workspace_id", ws).order("created_at", { ascending: false })).data ?? [] });
   const lists = useQuery({ queryKey: ["lists-simple", ws], enabled: !!ws, queryFn: async () => (await supabase.from("contact_lists").select("id,name").eq("workspace_id", ws)).data ?? [] });
-  const tpls = useQuery({ queryKey: ["templates", ws], enabled: !!ws, queryFn: async () => (await supabase.from("templates").select("*").eq("workspace_id", ws)).data ?? [] });
+  const tpls = useQuery({ queryKey: ["templates", ws], enabled: !!ws, queryFn: async () => (await supabase.from("templates").select("*").eq("workspace_id", ws).neq("category", "autopilot")).data ?? [] });
   const refresh = () => qc.invalidateQueries({ queryKey: ["campaigns", ws] });
   const num = (k: keyof typeof blank) => (e: React.ChangeEvent<HTMLInputElement>) => form && setForm({ ...form, [k]: Number(e.target.value) });
 
