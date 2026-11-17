@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cadence_enrollments: {
         Row: {
           attempts: number
@@ -138,9 +176,12 @@ export type Database = {
           campaign_id: string
           contact_id: string | null
           created_at: string
+          delivered_at: string | null
           error: string | null
+          external_id: string | null
           id: string
           phone: string
+          read_at: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["message_status"]
           workspace_id: string
@@ -151,9 +192,12 @@ export type Database = {
           campaign_id: string
           contact_id?: string | null
           created_at?: string
+          delivered_at?: string | null
           error?: string | null
+          external_id?: string | null
           id?: string
           phone: string
+          read_at?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           workspace_id: string
@@ -164,9 +208,12 @@ export type Database = {
           campaign_id?: string
           contact_id?: string | null
           created_at?: string
+          delivered_at?: string | null
           error?: string | null
+          external_id?: string | null
           id?: string
           phone?: string
+          read_at?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           workspace_id?: string
@@ -449,6 +496,82 @@ export type Database = {
           },
         ]
       }
+      credit_grants: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          note: string | null
+          workspace_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          workspace_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_grants_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          role: Database["public"]["Enums"]["member_role"]
+          workspace_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["member_role"]
+          workspace_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["member_role"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
@@ -567,6 +690,7 @@ export type Database = {
           phone: string
           push_name: string | null
           read: boolean
+          source: string | null
           workspace_id: string
         }
         Insert: {
@@ -579,6 +703,7 @@ export type Database = {
           phone: string
           push_name?: string | null
           read?: boolean
+          source?: string | null
           workspace_id: string
         }
         Update: {
@@ -591,6 +716,7 @@ export type Database = {
           phone?: string
           push_name?: string | null
           read?: boolean
+          source?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -616,6 +742,7 @@ export type Database = {
           created_by: string
           id: string
           name: string
+          optout_message: string
           timezone: string
           updated_at: string
         }
@@ -624,6 +751,7 @@ export type Database = {
           created_by: string
           id?: string
           name: string
+          optout_message?: string
           timezone?: string
           updated_at?: string
         }
@@ -632,6 +760,7 @@ export type Database = {
           created_by?: string
           id?: string
           name?: string
+          optout_message?: string
           timezone?: string
           updated_at?: string
         }
@@ -642,7 +771,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_my_invites: { Args: never; Returns: number }
+      campaign_metrics: {
+        Args: { _ws: string }
+        Returns: {
+          c_id: string
+          n_delivered: number
+          n_failed: number
+          n_queued: number
+          n_read: number
+          n_replied: number
+          n_sent: number
+          n_skipped: number
+        }[]
+      }
       create_workspace: { Args: { _name: string }; Returns: string }
+      credit_summary: { Args: { _ws: string }; Returns: Json }
+      erase_contact: { Args: { _contact_id: string }; Returns: undefined }
       has_workspace_role: {
         Args: {
           _role: Database["public"]["Enums"]["member_role"]
@@ -651,7 +796,19 @@ export type Database = {
         Returns: boolean
       }
       is_workspace_member: { Args: { _workspace_id: string }; Returns: boolean }
+      log_audit: {
+        Args: { _action: string; _details: Json; _entity: string; _ws: string }
+        Returns: undefined
+      }
       shares_workspace_with: { Args: { _other: string }; Returns: boolean }
+      workspace_metrics: {
+        Args: { _days?: number; _ws: string }
+        Returns: Json
+      }
+      write_audit: {
+        Args: { _action: string; _details: Json; _entity: string; _ws: string }
+        Returns: undefined
+      }
     }
     Enums: {
       campaign_status:

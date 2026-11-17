@@ -36,6 +36,13 @@
       "when": 1794866929123,
       "tag": "0004_funnel_cadences",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794919064002,
+      "tag": "0005_stage7_health_audit_lgpd_credits_invites",
+      "breakpoints": true
     }
   ]
 }
