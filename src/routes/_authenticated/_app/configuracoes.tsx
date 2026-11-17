@@ -1,19 +1,41 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Building2, KeyRound, Loader2, UserRound, Users } from "lucide-react";
+import {
+  Building2,
+  KeyRound,
+  Loader2,
+  UserRound,
+  Users,
+  UserPlus,
+  Trash2,
+  Mail,
+  Smartphone,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 import { supabase } from "@/integrations/supabase/client";
 import { profileQuery, ROLE_LABEL, useWorkspace, type MemberRole } from "@/lib/workspace";
 import { PageHeader } from "@/components/app/PageHeader";
-import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/_app/configuracoes")({
   head: () => ({
@@ -103,7 +125,7 @@ function WorkspaceTab() {
         </div>
         {isAdmin && (
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving} className="rounded-xl">
               {saving && <Loader2 className="animate-spin" />} Salvar alterações
             </Button>
           </div>
@@ -144,7 +166,7 @@ function ProfileTab() {
           <Input value={profile?.email ?? ""} disabled className="h-11 rounded-xl" />
         </div>
         <div className="sm:col-span-2">
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving} className="rounded-xl">
             {saving && <Loader2 className="animate-spin" />} Salvar perfil
           </Button>
         </div>
@@ -155,8 +177,31 @@ function ProfileTab() {
 
 function TeamTab() {
   const { current, isAdmin, userId } = useWorkspace();
+  const wsId = current?.workspace.id ?? "";
   const queryClient = useQueryClient();
-  const { data: team = [], isLoading } = useQuery({ ...teamQuery(current?.workspace.id ?? ""), enabled: !!current });
+
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("operator");
+  const [sendingInvite, setSendingInvite] = useState(false);
+
+  const { data: team = [], isLoading } = useQuery({ ...teamQuery(wsId), enabled: !!wsId });
+
+  // Consulta de convites pendentes
+  const { data: invites = [] } = useQuery({
+    queryKey: ["invites", wsId],
+    enabled: !!wsId && isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invites")
+        .select("id, email, role, created_at, accepted_at")
+        .eq("workspace_id", wsId)
+        .is("accepted_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   async function changeRole(memberId: string, role: MemberRole) {
     const { error } = await supabase.from("members").update({ role }).eq("id", memberId);
@@ -164,9 +209,57 @@ function TeamTab() {
       toast.error(error.message.includes("administrador") ? "O workspace precisa de pelo menos um Admin." : "Não foi possível alterar o papel.");
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ["team"] });
+    await queryClient.invalidateQueries({ queryKey: ["team", wsId] });
     await queryClient.invalidateQueries({ queryKey: ["memberships"] });
     toast.success("Papel atualizado.");
+  }
+
+  async function handleSendInvite(e: FormEvent) {
+    e.preventDefault();
+    if (!isAdmin || !wsId) return;
+    const cleanEmail = inviteEmail.toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+
+    setSendingInvite(true);
+    try {
+      const { error } = await supabase.from("invites").insert({
+        workspace_id: wsId,
+        email: cleanEmail,
+        role: inviteRole,
+        invited_by: userId,
+      });
+      if (error) {
+        if (error.message.includes("duplicate") || error.code === "23505") {
+          toast.info("Este e-mail já foi convidado ou já é membro do workspace.");
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success(`Convite registrado para ${cleanEmail}. Quando ele entrar no sistema, será adicionado à equipe.`);
+        setInviteModalOpen(false);
+        setInviteEmail("");
+        setInviteRole("operator");
+        queryClient.invalidateQueries({ queryKey: ["invites", wsId] });
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Falha ao enviar convite.");
+    } finally {
+      setSendingInvite(false);
+    }
+  }
+
+  async function handleCancelInvite(id: string) {
+    if (!isAdmin) return;
+    const { error } = await supabase.from("invites").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao cancelar convite.");
+    } else {
+      toast.success("Convite cancelado.");
+      queryClient.invalidateQueries({ queryKey: ["invites", wsId] });
+    }
   }
 
   return (
@@ -175,14 +268,18 @@ function TeamTab() {
         <div>
           <h2 className="font-bold">Equipe</h2>
           <p className="text-sm text-muted-foreground">
-            <strong className="text-foreground">Admin</strong> gerencia equipe, gateway e configurações.{" "}
+            <strong className="text-foreground">Admin</strong> gerencia equipe, créditos e configurações.{" "}
             <strong className="text-foreground">Operador</strong> atende conversas e opera campanhas.
           </p>
         </div>
-        <Button variant="outline" disabled title="Convites chegam na etapa de equipe e auditoria">
-          Convidar membro
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setInviteModalOpen(true)} className="rounded-xl">
+            <UserPlus className="mr-1.5 size-4" /> Convidar membro
+          </Button>
+        )}
       </div>
+
+      {/* Lista de Membros Ativos */}
       <ul className="mt-5 divide-y">
         {isLoading && <li className="py-4 text-sm text-muted-foreground">Carregando…</li>}
         {team.map((m) => (
@@ -214,19 +311,143 @@ function TeamTab() {
           </li>
         ))}
       </ul>
+
+      {/* Convites Pendentes */}
+      {isAdmin && invites.length > 0 && (
+        <div className="mt-8 border-t pt-5">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">
+            Convites Pendentes ({invites.length})
+          </h3>
+          <ul className="space-y-2">
+            {invites.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex items-center justify-between rounded-2xl border bg-muted/20 px-3 py-2 text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <Mail className="size-4 text-muted-foreground" />
+                  <span className="font-semibold text-foreground">{inv.email}</span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {ROLE_LABEL[inv.role as MemberRole]}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    enviado em {format(parseISO(inv.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-destructive hover:bg-destructive/10"
+                  onClick={() => handleCancelInvite(inv.id)}
+                >
+                  <Trash2 className="size-3.5 mr-1" /> Cancelar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Modal de Convidar Membro */}
+      <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
+        <DialogContent className="rounded-3xl max-w-md">
+          <DialogHeader>
+            <DialogTitle>Convidar Membro para o Workspace</DialogTitle>
+            <DialogDescription>
+              Informe o e-mail do colaborador e o papel que ele exercerá.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSendInvite} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-email">E-mail do colaborador</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="colaborador@empresa.com.br"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+                className="h-11 rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-role">Papel na equipe</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role" className="h-11 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="operator">Operador (Atendimento e Campanhas)</SelectItem>
+                  <SelectItem value="admin">Administrador (Controle Total)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="ghost" onClick={() => setInviteModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={sendingInvite} className="rounded-xl">
+                {sendingInvite ? "Registrando..." : "Enviar Convite"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Panel>
   );
 }
 
 function GatewayTab() {
+  const { current } = useWorkspace();
+  const instName = current ? `zp-${current.workspace.id.slice(0, 8)}` : "zp-default";
+
   return (
     <Panel>
-      <EmptyState
-        compact
-        icon={KeyRound}
-        title="Gateway Evolution API"
-        description="Na etapa 3 você informa a URL base da sua Evolution API e a chave de acesso. A chave fica guardada apenas no servidor — nunca no navegador."
-      />
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="grid size-11 place-items-center rounded-2xl bg-primary/15 text-primary">
+            <KeyRound className="size-5" />
+          </div>
+          <div>
+            <h2 className="font-bold text-base">Gateway de Mensageria Evolution API</h2>
+            <p className="text-xs text-muted-foreground">Conexão segura para disparo em massa e atendimento via Baileys.</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-muted/20 p-4 space-y-3 text-xs leading-relaxed">
+          <div className="flex items-center gap-2 text-success font-semibold">
+            <CheckCircle2 className="size-4" />
+            <span>Servidor Conectado & Credenciais Blindadas</span>
+          </div>
+          <p className="text-muted-foreground">
+            A URL do gateway e as chaves de API (<code className="font-mono text-foreground">EVOLUTION_API_KEY</code>) são mantidas exclusivamente no servidor backend (Edge Functions / Secrets). Nenhuma credencial é exposta no navegador dos operadores.
+          </p>
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t font-mono text-[11px]">
+            <div>
+              <span className="text-muted-foreground">Identificador da Instância:</span>
+              <p className="font-bold text-foreground mt-0.5">{instName}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Fila Anti-Banimento:</span>
+              <p className="font-bold text-primary mt-0.5">Ativa (Minuto a Minuto)</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <p className="text-xs text-muted-foreground">
+            Para parear o chip de WhatsApp via QR Code ou verificar a conexão em tempo real:
+          </p>
+          <Button asChild className="rounded-xl">
+            <Link to="/whatsapp">
+              <Smartphone className="mr-1.5 size-4" /> Conectar WhatsApp
+            </Link>
+          </Button>
+        </div>
+      </div>
     </Panel>
   );
 }

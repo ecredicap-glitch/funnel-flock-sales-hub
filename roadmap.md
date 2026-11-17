@@ -6,7 +6,7 @@
 - [x] 4. Templates, editor com spintax e campanhas com fila anti-banimento
 - [x] 5. Caixa de entrada em tempo real + classificação por IA
 - [x] 6. Funil Kanban + cadências (aguardando validação)
-- [ ] 7. Saúde do número, relatórios, auditoria, LGPD, créditos e convites de equipe
+- [x] 7. Saúde do número, relatórios, auditoria, LGPD, créditos e convites de equipe
 
 ## Extras
 - [x] Disparo de teste rápido (tela WhatsApp)

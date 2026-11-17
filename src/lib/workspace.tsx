@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -58,8 +58,20 @@ type WorkspaceContextValue = {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
+  const queryClient = useQueryClient();
   const { data: memberships } = useSuspenseQuery(membershipsQuery(userId));
   const [currentId, setCurrentIdState] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .rpc("accept_my_invites")
+      .then(({ data }) => {
+        if (data && data > 0) {
+          queryClient.invalidateQueries({ queryKey: ["memberships", userId] });
+        }
+      })
+      .catch(() => {});
+  }, [userId, queryClient]);
 
   useEffect(() => {
     try {

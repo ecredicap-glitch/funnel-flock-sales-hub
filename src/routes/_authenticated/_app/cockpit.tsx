@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMemo, useState } from "react";
 import {
   Users,
   Send,
@@ -14,11 +15,24 @@ import {
   Upload,
   Megaphone,
   ArrowUpRight,
+  Flame,
+  CheckCircle2,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 
 import { profileQuery, useWorkspace } from "@/lib/workspace";
+import { whatsappAction } from "@/lib/whatsapp.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { since } from "@/lib/funnel";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HealthRing } from "@/components/app/HealthRing";
@@ -45,23 +59,189 @@ function greeting() {
   return "Boa noite";
 }
 
-const KPIS = [
-  { label: "Contatos", value: "0", hint: "com opt-in válido", icon: Users },
-  { label: "Enviadas hoje", value: "0", hint: "de 0 permitidas", icon: Send },
-  { label: "Taxa de entrega", value: "—", hint: "últimos 7 dias", icon: CheckCheck },
-  { label: "Taxa de resposta", value: "—", hint: "últimos 7 dias", icon: MessageCircleReply },
-  { label: "Descadastros", value: "0", hint: "últimos 30 dias", icon: UserMinus },
-  { label: "Limite restante", value: "—", hint: "créditos / dia", icon: Coins },
+const HEATMAP_DAYS = [
+  { dow: 1, label: "Seg" },
+  { dow: 2, label: "Ter" },
+  { dow: 3, label: "Qua" },
+  { dow: 4, label: "Qui" },
+  { dow: 5, label: "Sex" },
+  { dow: 6, label: "Sáb" },
+  { dow: 0, label: "Dom" },
 ];
-
-const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8);
+
+type Metrics = {
+  contacts: number;
+  sent_today: number;
+  sent: number;
+  contacted: number;
+  repliers: number;
+  camp_sent: number;
+  camp_delivered: number;
+  camp_failed: number;
+  optouts: number;
+  daily: { day: string; sent: number; replies: number }[];
+  heatmap: { dow: number; hour: number; n: number }[];
+  stages: Record<string, number>;
+  daily_limit: number | null;
+  scheduled: { name: string; status: string; start_at: string | null; remaining: number }[];
+  followups_today: number;
+  hot_leads: { id: string; name: string | null; phone: string; stage: string; last_in: string }[];
+};
 
 function Cockpit() {
   const { userId, current } = useWorkspace();
+  const wsId = current?.workspace.id ?? "";
   const { data: profile } = useQuery(profileQuery(userId));
   const [range, setRange] = useState<7 | 30>(7);
   const firstName = profile?.full_name?.split(" ")[0];
+
+  const fnWa = useServerFn(whatsappAction);
+  const waQuery = useQuery({
+    queryKey: ["wa", wsId],
+    enabled: !!wsId,
+    refetchInterval: 25000,
+    queryFn: () => fnWa({ data: { workspaceId: wsId, action: "status" } }),
+  });
+
+  const metricsQuery = useQuery({
+    queryKey: ["workspace_metrics", wsId, range],
+    enabled: !!wsId,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("workspace_metrics", { _ws: wsId, _days: range });
+      if (error) throw error;
+      return (data ?? {}) as unknown as Metrics;
+    },
+  });
+
+  const creditQuery = useQuery({
+    queryKey: ["credit_summary", wsId],
+    enabled: !!wsId,
+    refetchInterval: 60000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("credit_summary", { _ws: wsId });
+      if (error) throw error;
+      return (data ?? {}) as any;
+    },
+  });
+
+  const metrics = metricsQuery.data;
+  const isConnected = waQuery.data?.state === "open";
+
+  // Score de Saúde do Número (0 a 100)
+  const health = useMemo(() => {
+    if (!isConnected) {
+      return {
+        score: null,
+        title: "Nenhum número conectado",
+        desc: "Conecte seu WhatsApp para habilitar envios, cadências e monitoramento de saúde.",
+      };
+    }
+
+    let score = 100;
+    const attempts = (metrics?.camp_sent ?? 0) + (metrics?.camp_failed ?? 0);
+    if (attempts >= 5) {
+      const failRate = (metrics?.camp_failed ?? 0) / attempts;
+      if (failRate > 0.05) score -= Math.min(50, Math.round(failRate * 200));
+    }
+    const optouts = metrics?.optouts ?? 0;
+    if (optouts > 0) score -= Math.min(30, optouts * 5);
+    const limit = metrics?.daily_limit || 50;
+    if ((metrics?.sent_today ?? 0) > limit) score -= 15;
+
+    const finalScore = Math.max(15, Math.min(100, score));
+    let title = "Número saudável";
+    let desc = "Taxa de falhas sob controle e boa reputação no WhatsApp. Continue respeitando os limites.";
+    if (finalScore < 70 && finalScore >= 40) {
+      title = "Atenção aos envios";
+      desc = "Notamos aumento em falhas ou descadastros. Diminua o ritmo e aumente os intervalos.";
+    } else if (finalScore < 40) {
+      title = "Risco de bloqueio";
+      desc = "Taxa de falhas ou denúncias elevada. Recomendado pausar campanhas e aguardar 24h.";
+    }
+
+    return { score: finalScore, title, desc };
+  }, [isConnected, metrics]);
+
+  // Cálculos de KPIs
+  const deliveryRate = useMemo(() => {
+    if (!metrics?.camp_sent || metrics.camp_sent === 0) return "—";
+    const deliv = metrics.camp_delivered ?? 0;
+    return `${Math.round((deliv / metrics.camp_sent) * 100)}%`;
+  }, [metrics]);
+
+  const replyRate = useMemo(() => {
+    if (!metrics?.contacted || metrics.contacted === 0) return "—";
+    const rep = metrics.repliers ?? 0;
+    return `${Math.round((rep / metrics.contacted) * 100)}%`;
+  }, [metrics]);
+
+  const kpis = [
+    {
+      label: "Contatos",
+      value: (metrics?.contacts ?? 0).toLocaleString("pt-BR"),
+      hint: "com opt-in válido",
+      icon: Users,
+    },
+    {
+      label: "Enviadas hoje",
+      value: (metrics?.sent_today ?? 0).toLocaleString("pt-BR"),
+      hint: `de ${metrics?.daily_limit || 50} permitidas`,
+      icon: Send,
+    },
+    {
+      label: "Taxa de entrega",
+      value: deliveryRate,
+      hint: `últimos ${range} dias`,
+      icon: CheckCheck,
+    },
+    {
+      label: "Taxa de resposta",
+      value: replyRate,
+      hint: `últimos ${range} dias`,
+      icon: MessageCircleReply,
+    },
+    {
+      label: "Descadastros",
+      value: (metrics?.optouts ?? 0).toLocaleString("pt-BR"),
+      hint: `últimos ${range} dias`,
+      icon: UserMinus,
+    },
+    {
+      label: "Saldo disponível",
+      value: creditQuery.data?.balance != null ? Number(creditQuery.data.balance).toLocaleString("pt-BR") : "—",
+      hint: "créditos de mensagem",
+      icon: Coins,
+    },
+  ];
+
+  // Gráfico de envios x respostas
+  const chartData = useMemo(() => {
+    if (!metrics?.daily?.length) return [];
+    return metrics.daily.map((d) => ({
+      label: format(parseISO(d.day), "dd/MM"),
+      enviadas: d.sent,
+      respostas: d.replies,
+    }));
+  }, [metrics?.daily]);
+
+  const hasChartData = useMemo(() => chartData.some((d) => d.enviadas > 0 || d.respostas > 0), [chartData]);
+
+  // Heatmap indexado
+  const heatmapMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!metrics?.heatmap) return map;
+    for (const h of metrics.heatmap) {
+      map.set(`${h.dow}-${h.hour}`, h.n);
+    }
+    return map;
+  }, [metrics?.heatmap]);
+
+  const maxHeatmap = useMemo(() => {
+    if (!metrics?.heatmap?.length) return 1;
+    return Math.max(1, ...metrics.heatmap.map((x) => x.n));
+  }, [metrics?.heatmap]);
 
   return (
     <div className="space-y-4">
@@ -75,16 +255,19 @@ function Cockpit() {
         </h1>
       </div>
 
-      {/* Number health strip */}
+      {/* Faixa de Saúde do Número */}
       <section className="glass flex flex-col gap-5 rounded-3xl p-5 sm:flex-row sm:items-center animate-fade-up">
         <div className="flex items-center gap-4">
-          <HealthRing value={null} size={76} />
+          <HealthRing value={health.score} size={76} />
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Saúde do número</p>
-            <p className="mt-0.5 font-bold">Nenhum número conectado</p>
-            <p className="text-sm text-muted-foreground">
-              O índice 0–100 considera falhas, descadastros, volume vs. limite e idade da conexão.
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Saúde do número</p>
+              {isConnected && waQuery.data?.number && (
+                <span className="font-mono text-xs text-primary">+{waQuery.data.number}</span>
+              )}
+            </div>
+            <p className="mt-0.5 font-bold">{health.title}</p>
+            <p className="text-sm text-muted-foreground">{health.desc}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 sm:ml-auto">
@@ -97,17 +280,17 @@ function Cockpit() {
               <span className={cn("size-2 rounded-full", c)} /> {t}
             </span>
           ))}
-          <Button asChild variant="hero" size="sm" className="h-9">
+          <Button asChild variant={isConnected ? "outline" : "hero"} size="sm" className="h-9">
             <Link to="/whatsapp">
-              <Smartphone /> Conectar número
+              <Smartphone /> {isConnected ? "Gerenciar número" : "Conectar número"}
             </Link>
           </Button>
         </div>
       </section>
 
-      {/* KPIs */}
+      {/* Cards de KPIs */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {KPIS.map((k, i) => (
+        {kpis.map((k, i) => (
           <div
             key={k.label}
             className="glass group rounded-3xl p-4 transition-transform duration-300 hover:-translate-y-0.5 animate-fade-up"
@@ -125,8 +308,9 @@ function Cockpit() {
         ))}
       </section>
 
+      {/* Gráficos centrais */}
       <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        {/* Sends vs replies */}
+        {/* Envios x Respostas */}
         <div className="glass rounded-3xl p-5 animate-fade-up">
           <div className="flex items-center justify-between">
             <div>
@@ -148,15 +332,64 @@ function Cockpit() {
               ))}
             </div>
           </div>
-          <EmptyState
-            compact
-            icon={BarChart3}
-            title="Sem envios no período"
-            description="O gráfico aparece assim que sua primeira campanha começar a rodar."
-          />
+
+          <div className="mt-4 min-h-[220px]">
+            {hasChartData ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="replyGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#B6F500" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="#B6F500" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="label" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(15, 23, 42, 0.95)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "1rem",
+                      color: "#fff",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="enviadas"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#sentGrad)"
+                    name="Enviadas"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="respostas"
+                    stroke="#B6F500"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#replyGrad)"
+                    name="Respostas"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState
+                compact
+                icon={BarChart3}
+                title="Sem envios no período"
+                description="O gráfico aparece assim que sua primeira campanha começar a rodar."
+              />
+            )}
+          </div>
         </div>
 
-        {/* Best reply time heatmap */}
+        {/* Heatmap de Melhor Horário */}
         <div className="glass rounded-3xl p-5 animate-fade-up [animation-delay:80ms]">
           <h2 className="font-bold">Melhor horário de resposta</h2>
           <p className="text-xs text-muted-foreground">Calculado a partir das respostas reais (fuso America/Belem)</p>
@@ -164,27 +397,41 @@ function Cockpit() {
             <div className="grid grid-cols-[28px_repeat(12,1fr)] gap-1 text-[10px] text-muted-foreground">
               <span />
               {HOURS.map((h) => (
-                <span key={h} className="text-center">{h}</span>
+                <span key={h} className="text-center">{h}h</span>
               ))}
-              {DAYS.map((d) => (
-                <div key={d} className="contents">
-                  <span className="self-center">{d}</span>
-                  {HOURS.map((h) => (
-                    <span key={h} className="aspect-square rounded-[5px] bg-muted/70" />
-                  ))}
+              {HEATMAP_DAYS.map((d) => (
+                <div key={d.label} className="contents">
+                  <span className="self-center font-medium">{d.label}</span>
+                  {HOURS.map((h) => {
+                    const count = heatmapMap.get(`${d.dow}-${h}`) || 0;
+                    const intensity = count > 0 ? Math.max(0.25, count / maxHeatmap) : 0;
+                    return (
+                      <span
+                        key={h}
+                        title={count > 0 ? `${count} respostas às ${h}h na ${d.label}` : "Sem respostas"}
+                        className={cn(
+                          "aspect-square rounded-[5px] transition-colors",
+                          count > 0 ? "bg-primary" : "bg-muted/70"
+                        )}
+                        style={count > 0 ? { opacity: intensity } : undefined}
+                      />
+                    );
+                  })}
                 </div>
               ))}
             </div>
-            <div className="absolute inset-0 grid place-items-center">
-              <p className="glass rounded-xl px-3 py-2 text-xs text-muted-foreground">
-                Aguardando as primeiras respostas
-              </p>
-            </div>
+            {maxHeatmap <= 1 && heatmapMap.size === 0 && (
+              <div className="absolute inset-0 grid place-items-center">
+                <p className="glass rounded-xl px-3 py-2 text-xs text-muted-foreground">
+                  Aguardando as primeiras respostas
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Next actions */}
+      {/* Próximas Ações & Leads Quentes */}
       <section className="glass rounded-3xl p-5 animate-fade-up">
         <div className="flex items-center justify-between">
           <div>
@@ -195,32 +442,65 @@ function Cockpit() {
           </div>
           <CalendarClock className="size-5 text-muted-foreground" />
         </div>
-        <p className="mt-5 text-sm font-semibold">Comece em 3 passos</p>
-        <ol className="mt-3 grid gap-3 md:grid-cols-3">
-          {[
-            { n: 1, icon: Smartphone, t: "Conecte um número", d: "Use um número secundário e ative o aquecimento.", to: "/whatsapp" as const },
-            { n: 2, icon: Upload, t: "Importe contatos com opt-in", d: "CSV/XLSX com origem e data do consentimento.", to: "/contatos" as const },
-            { n: 3, icon: Megaphone, t: "Crie sua primeira campanha", d: "Mensagem com variações e regras anti-banimento.", to: "/campanhas" as const },
-          ].map((s) => (
-            <li key={s.n}>
-              <Link
-                to={s.to}
-                className="group flex h-full gap-3 rounded-2xl border bg-muted/40 p-4 transition-colors hover:border-primary/50 hover:bg-accent"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary font-mono text-sm font-bold text-primary-foreground">
-                  {s.n}
-                </span>
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1 text-sm font-semibold">
-                    {s.t}
-                    <ArrowUpRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+
+        {metrics?.hot_leads && metrics.hot_leads.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-warning">
+              <Flame className="size-4" /> Leads quentes aguardando retorno há mais de 24 horas:
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {metrics.hot_leads.map((l) => (
+                <div key={l.id} className="flex flex-col justify-between rounded-2xl border bg-muted/30 p-3">
+                  <div>
+                    <p className="truncate text-sm font-semibold">{l.name || l.phone}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Estágio: <span className="font-medium capitalize text-foreground">{l.stage}</span>
+                    </p>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">há {since(l.last_in)}</span>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                      <Link to="/conversas">Atender</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-2 text-xs text-success">
+            <CheckCircle2 className="size-4" /> Nenhum lead quente atrasado há mais de 24h.
+          </div>
+        )}
+
+        <div className="mt-5 border-t pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Guia de Início Rápido</p>
+          <ol className="mt-3 grid gap-3 md:grid-cols-3">
+            {[
+              { n: 1, icon: Smartphone, t: "Conecte um número", d: "Use um número secundário e ative o aquecimento.", to: "/whatsapp" as const },
+              { n: 2, icon: Upload, t: "Importe contatos com opt-in", d: "CSV/XLSX com origem e data do consentimento.", to: "/contatos" as const },
+              { n: 3, icon: Megaphone, t: "Crie sua primeira campanha", d: "Mensagem com variações e regras anti-banimento.", to: "/campanhas" as const },
+            ].map((s) => (
+              <li key={s.n}>
+                <Link
+                  to={s.to}
+                  className="group flex h-full gap-3 rounded-2xl border bg-muted/40 p-4 transition-colors hover:border-primary/50 hover:bg-accent"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary font-mono text-sm font-bold text-primary-foreground">
+                    {s.n}
                   </span>
-                  <span className="text-xs text-muted-foreground">{s.d}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ol>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1 text-sm font-semibold">
+                      {s.t}
+                      <ArrowUpRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                    </span>
+                    <span className="text-xs text-muted-foreground">{s.d}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
     </div>
   );

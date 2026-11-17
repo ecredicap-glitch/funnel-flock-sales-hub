@@ -1,8 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const WEBHOOK_BASE = "https://project--00cac890-075e-5664-815c-6b5cbf4c1503-dev.lovable.app";
+const FALLBACK_WEBHOOK_BASE = "https://project--00cac890-075e-5664-815c-6b5cbf4c1503-dev.lovable.app";
+
+function resolveWebhookBase(): string {
+  if (process.env["APP_URL"]) return process.env["APP_URL"].replace(/\/$/, "");
+  if (process.env["ORIGIN"]) return process.env["ORIGIN"].replace(/\/$/, "");
+  try {
+    const req = getRequest();
+    if (req?.url) {
+      const u = new URL(req.url);
+      return `${u.protocol}//${u.host}`;
+    }
+  } catch {}
+  return FALLBACK_WEBHOOK_BASE;
+}
 
 const evo = () => ({ base: (process.env["EVOLUTION_API_URL"] ?? "").replace(/\/$/, ""), key: process.env["EVOLUTION_API_KEY"] ?? "" });
 
@@ -16,7 +30,8 @@ export const setupInboxWebhook = createServerFn({ method: "POST" })
     const { base, key } = evo();
     if (!base || !key) return { ok: false, error: "Gateway não configurado." };
     const { webhookToken } = await import("@/lib/wa-token.server");
-    const url = `${WEBHOOK_BASE}/api/public/whatsapp/webhook?ws=${data.workspaceId}&t=${await webhookToken(data.workspaceId)}`;
+    const webhookBase = resolveWebhookBase();
+    const url = `${webhookBase}/api/public/whatsapp/webhook?ws=${data.workspaceId}&t=${await webhookToken(data.workspaceId)}`;
     const r = await fetch(`${base}/webhook/set/zp-${data.workspaceId.slice(0, 8)}`, {
       method: "POST", headers: { apikey: key, "content-type": "application/json" },
       body: JSON.stringify({ webhook: { enabled: true, url, webhookByEvents: false, webhookBase64: false, events: ["MESSAGES_UPSERT"] } }),
