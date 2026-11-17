@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pause, Play, Plus, X, Loader2, Wand2 } from "lucide-react";
+import { Pause, Play, Plus, X, Loader2, Wand2, Filter, MessageSquareReply, CheckCheck, Eye, Clock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { generateVariations } from "@/lib/ai.functions";
 import { TemplatePreview } from "@/components/app/TemplatePreview";
@@ -42,6 +42,98 @@ function CampanhasPage() {
     queryFn: async () => (await supabase.from("campaigns").select("*").eq("workspace_id", ws).order("created_at", { ascending: false })).data ?? [] });
   const lists = useQuery({ queryKey: ["lists-simple", ws], enabled: !!ws, queryFn: async () => (await supabase.from("contact_lists").select("id,name").eq("workspace_id", ws)).data ?? [] });
   const tpls = useQuery({ queryKey: ["templates", ws], enabled: !!ws, queryFn: async () => (await supabase.from("templates").select("*").eq("workspace_id", ws).neq("category", "autopilot")).data ?? [] });
+
+  type CampMetric = {
+    c_id: string;
+    n_queued: number;
+    n_sent: number;
+    n_delivered: number;
+    n_read: number;
+    n_failed: number;
+    n_skipped: number;
+    n_replied: number;
+  };
+
+  const metricsQuery = useQuery({
+    queryKey: ["campaign_metrics", ws],
+    enabled: !!ws,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("campaign_metrics", { _ws: ws });
+      if (error) return {};
+      const map: Record<string, CampMetric> = {};
+      ((data ?? []) as any[]).forEach((m) => {
+        map[m.c_id] = {
+          c_id: m.c_id,
+          n_queued: Number(m.n_queued || 0),
+          n_sent: Number(m.n_sent || 0),
+          n_delivered: Number(m.n_delivered || 0),
+          n_read: Number(m.n_read || 0),
+          n_failed: Number(m.n_failed || 0),
+          n_skipped: Number(m.n_skipped || 0),
+          n_replied: Number(m.n_replied || 0),
+        };
+      });
+      return map;
+    },
+  });
+
+  const [segmentingId, setSegmentingId] = useState<string | null>(null);
+
+  async function segmentRepliers(camp: { id: string; name: string }) {
+    setSegmentingId(camp.id);
+    try {
+      const { data: repliedMsgs } = await supabase
+        .from("campaign_messages")
+        .select("contact_id, phone")
+        .eq("campaign_id", camp.id)
+        .eq("status", "sent");
+
+      if (!repliedMsgs || repliedMsgs.length === 0) {
+        toast.info("Nenhuma mensagem enviada nesta campanha ainda.");
+        return;
+      }
+
+      const phones = repliedMsgs.map((m) => m.phone);
+      const { data: incoming } = await supabase
+        .from("wa_messages")
+        .select("phone")
+        .eq("workspace_id", ws)
+        .eq("direction", "in")
+        .in("phone", phones);
+
+      const repliedPhones = new Set((incoming ?? []).map((i) => i.phone));
+      const contactIds = Array.from(
+        new Set(repliedMsgs.filter((m) => repliedPhones.has(m.phone)).map((m) => m.contact_id))
+      ).filter(Boolean);
+
+      if (contactIds.length === 0) {
+        toast.info("Ainda não há respostas registradas para esta campanha.");
+        return;
+      }
+
+      const listName = `Respondentes: ${camp.name.slice(0, 25)}`;
+      const { data: newList, error: listErr } = await supabase
+        .from("contact_lists")
+        .insert({ workspace_id: ws, name: listName })
+        .select("id")
+        .single();
+
+      if (listErr || !newList) throw listErr;
+
+      const members = contactIds.map((cid) => ({ list_id: newList.id, contact_id: cid }));
+      const { error: memErr } = await supabase.from("contact_list_members").insert(members);
+      if (memErr) throw memErr;
+
+      toast.success(`Lista "${listName}" criada com ${contactIds.length} contatos engajados!`);
+      qc.invalidateQueries({ queryKey: ["lists-simple", ws] });
+      qc.invalidateQueries({ queryKey: ["contact_lists", ws] });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Falha ao segmentar contatos.");
+    } finally {
+      setSegmentingId(null);
+    }
+  }
   const refresh = () => qc.invalidateQueries({ queryKey: ["campaigns", ws] });
   const num = (k: keyof typeof blank) => (e: React.ChangeEvent<HTMLInputElement>) => form && setForm({ ...form, [k]: Number(e.target.value) });
 
@@ -106,20 +198,88 @@ function CampanhasPage() {
       )}
       <div className="grid gap-4">
         {camps.data?.length === 0 && !form && <p className="text-muted-foreground">Nenhuma campanha ainda.</p>}
-        {camps.data?.map((c) => (
-          <article key={c.id} className="glass rounded-3xl p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="font-bold">{c.name}</h3><p className="text-sm text-muted-foreground">{ST[c.status]}{c.pause_reason ? ` — ${c.pause_reason}` : ""}</p></div>
-              <div className="flex gap-2">
-                {(c.status === "draft" || c.status === "paused") && <Button size="sm" onClick={() => setStatus(c.id, "running")}><Play /> {c.status === "draft" ? "Iniciar" : "Continuar"}</Button>}
-                {c.status === "running" && <Button size="sm" variant="outline" onClick={() => setStatus(c.id, "paused")}><Pause /> Pausar</Button>}
-                {["draft", "running", "paused"].includes(c.status) && <Button size="sm" variant="ghost" onClick={() => setStatus(c.id, "cancelled")}><X /> Cancelar</Button>}
+        {camps.data?.map((c) => {
+          const m = metricsQuery.data?.[c.id];
+          const queued = m?.n_queued ?? Math.max(0, c.total - (c.sent + c.failed));
+          const sent = m?.n_sent ?? c.sent;
+          const delivered = m?.n_delivered ?? 0;
+          const read = m?.n_read ?? 0;
+          const replied = m?.n_replied ?? 0;
+          const convRate = sent > 0 ? Math.round((replied / sent) * 100) : 0;
+          const isSegmenting = segmentingId === c.id;
+
+          return (
+            <article key={c.id} className="glass rounded-3xl p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-base">{c.name}</h3>
+                  <p className="text-xs text-muted-foreground">{ST[c.status]}{c.pause_reason ? ` — ${c.pause_reason}` : ""}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl text-xs"
+                    disabled={isSegmenting || busy || sent === 0}
+                    onClick={() => segmentRepliers(c)}
+                  >
+                    {isSegmenting ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Filter className="mr-1.5 size-3.5 text-primary" />}
+                    Segmentar quem respondeu
+                  </Button>
+                  {(c.status === "draft" || c.status === "paused") && (
+                    <Button size="sm" className="rounded-xl text-xs" onClick={() => setStatus(c.id, "running")}>
+                      <Play className="mr-1 size-3.5" /> {c.status === "draft" ? "Iniciar" : "Continuar"}
+                    </Button>
+                  )}
+                  {c.status === "running" && (
+                    <Button size="sm" variant="outline" className="rounded-xl text-xs" onClick={() => setStatus(c.id, "paused")}>
+                      <Pause className="mr-1 size-3.5" /> Pausar
+                    </Button>
+                  )}
+                  {["draft", "running", "paused"].includes(c.status) && (
+                    <Button size="sm" variant="ghost" className="rounded-xl text-xs text-muted-foreground hover:text-destructive" onClick={() => setStatus(c.id, "cancelled")}>
+                      <X className="mr-1 size-3.5" /> Cancelar
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-            <Progress className="mt-4" value={c.total ? ((c.sent + c.failed) / c.total) * 100 : 0} />
-            <p className="mt-2 text-xs text-muted-foreground">{c.sent} enviadas · {c.failed} falhas · {c.total} no total</p>
-          </article>
-        ))}
+
+              <Progress value={c.total ? ((c.sent + c.failed) / c.total) * 100 : 0} className="h-2 rounded-full" />
+
+              {/* Funil Resumido da Campanha */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-6 rounded-2xl bg-muted/25 p-3 text-xs">
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground flex items-center gap-1 text-[11px]"><Clock className="size-3" /> Fila</span>
+                  <p className="font-bold text-foreground font-mono">{queued}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground text-[11px]">Enviadas</span>
+                  <p className="font-bold text-foreground font-mono">{sent}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground flex items-center gap-1 text-[11px]"><CheckCheck className="size-3" /> Entregues</span>
+                  <p className="font-bold text-foreground font-mono">{delivered}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground flex items-center gap-1 text-[11px]"><Eye className="size-3" /> Lidas</span>
+                  <p className="font-bold text-foreground font-mono">{read}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground flex items-center gap-1 text-[11px]"><MessageSquareReply className="size-3" /> Respostas</span>
+                  <p className="font-bold text-primary font-mono">{replied}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground text-[11px]">Conversão</span>
+                  <p className="font-bold text-success font-mono">{convRate}%</p>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Total planejado: {c.total} contatos · Falhas: {c.failed}
+              </p>
+            </article>
+          );
+        })}
       </div>
     </>
   );

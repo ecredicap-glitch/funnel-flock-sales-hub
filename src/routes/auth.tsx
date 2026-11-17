@@ -72,13 +72,14 @@ function AuthPage() {
       } else if (mode === "signup") {
         const fullName = String(form.get("full_name") ?? "").trim();
         const workspaceName = String(form.get("workspace_name") ?? "").trim();
+        if (!workspaceName) throw new Error("Informe o nome da sua empresa.");
         if (password.length < 8) throw new Error("A senha precisa ter pelo menos 8 caracteres.");
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName, workspace_name: workspaceName },
+            data: { full_name: fullName, workspace_name: workspaceName, company_name: workspaceName },
           },
         });
         if (error) throw error;
@@ -98,7 +99,7 @@ function AuthPage() {
     }
   }
 
-  async function oauth(provider: "google" | "lovable") {
+  async function oauth(provider: "google") {
     try {
       sessionStorage.setItem(REDIRECT_KEY, safeRedirect(search.redirect));
     } catch {
@@ -186,14 +187,6 @@ function AuthPage() {
                       <GoogleG />
                       Continuar com Google
                     </button>
-                    <button
-                      type="button"
-                      className="lovable-auth-button"
-                      style={{ width: "100%" }}
-                      onClick={() => oauth("lovable")}
-                    >
-                      Continue with Lovable
-                    </button>
                   </div>
                   <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="h-px flex-1 bg-border" /> ou com e-mail <span className="h-px flex-1 bg-border" />
@@ -205,7 +198,7 @@ function AuthPage() {
                 {mode === "signup" && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field id="full_name" label="Seu nome" required autoComplete="name" />
-                    <Field id="workspace_name" label="Empresa" placeholder="Ex.: Prime Crédito" />
+                    <Field id="workspace_name" label="Nome da sua Empresa" placeholder="Ex.: Clínica Sorriso" required />
                   </div>
                 )}
                 <Field id="email" label="E-mail" type="email" required autoComplete="email" />

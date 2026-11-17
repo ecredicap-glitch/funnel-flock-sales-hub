@@ -36,6 +36,7 @@ import { since } from "@/lib/funnel";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HealthRing } from "@/components/app/HealthRing";
+import { calculateChipHealth } from "@/lib/chip-health";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_app/cockpit")({
@@ -129,7 +130,7 @@ function Cockpit() {
   const metrics = metricsQuery.data;
   const isConnected = waQuery.data?.state === "open";
 
-  // Score de Saúde do Número (0 a 100)
+  // Score de Saúde do Número (0 a 100) unificado com chip-health
   const health = useMemo(() => {
     if (!isConnected) {
       return {
@@ -139,29 +140,19 @@ function Cockpit() {
       };
     }
 
-    let score = 100;
-    const attempts = (metrics?.camp_sent ?? 0) + (metrics?.camp_failed ?? 0);
-    if (attempts >= 5) {
-      const failRate = (metrics?.camp_failed ?? 0) / attempts;
-      if (failRate > 0.05) score -= Math.min(50, Math.round(failRate * 200));
-    }
-    const optouts = metrics?.optouts ?? 0;
-    if (optouts > 0) score -= Math.min(30, optouts * 5);
-    const limit = metrics?.daily_limit || 50;
-    if ((metrics?.sent_today ?? 0) > limit) score -= 15;
+    const computed = calculateChipHealth({
+      connected: true,
+      sentToday: metrics?.sent_today ?? 0,
+      failedToday: metrics?.camp_failed ?? 0,
+      dailyLimit: metrics?.daily_limit ?? 20,
+      optouts: metrics?.optouts ?? 0,
+    });
 
-    const finalScore = Math.max(15, Math.min(100, score));
-    let title = "Número saudável";
-    let desc = "Taxa de falhas sob controle e boa reputação no WhatsApp. Continue respeitando os limites.";
-    if (finalScore < 70 && finalScore >= 40) {
-      title = "Atenção aos envios";
-      desc = "Notamos aumento em falhas ou descadastros. Diminua o ritmo e aumente os intervalos.";
-    } else if (finalScore < 40) {
-      title = "Risco de bloqueio";
-      desc = "Taxa de falhas ou denúncias elevada. Recomendado pausar campanhas e aguardar 24h.";
-    }
-
-    return { score: finalScore, title, desc };
+    return {
+      score: computed.score,
+      title: `Número: ${computed.statusLabel}`,
+      desc: computed.reason,
+    };
   }, [isConnected, metrics]);
 
   // Cálculos de KPIs
