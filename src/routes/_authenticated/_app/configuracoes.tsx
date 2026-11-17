@@ -4,16 +4,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
   Building2,
-  KeyRound,
   Loader2,
   UserRound,
   Users,
   UserPlus,
   Trash2,
   Mail,
-  Smartphone,
   ShieldCheck,
-  CheckCircle2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,9 +38,9 @@ export const Route = createFileRoute("/_authenticated/_app/configuracoes")({
   head: () => ({
     meta: [
       { title: "Configurações — ZapPilot" },
-      { name: "description", content: "Workspace, perfil, equipe e gateway de WhatsApp." },
+      { name: "description", content: "Workspace, perfil e equipe." },
       { property: "og:title", content: "Configurações — ZapPilot" },
-      { property: "og:description", content: "Workspace, perfil, equipe e gateway de WhatsApp." },
+      { property: "og:description", content: "Workspace, perfil e equipe." },
     ],
   }),
   component: SettingsPage,
@@ -66,18 +63,16 @@ const teamQuery = (workspaceId: string) =>
 function SettingsPage() {
   return (
     <>
-      <PageHeader eyebrow="Conta" title="Configurações" description="Workspace, perfil, equipe e conexão com o gateway." />
+      <PageHeader eyebrow="Conta" title="Configurações" description="Workspace, perfil e equipe." />
       <Tabs defaultValue="workspace" className="animate-fade-up">
         <TabsList className="h-auto flex-wrap rounded-2xl p-1">
           <TabsTrigger value="workspace" className="rounded-xl"><Building2 className="mr-1.5 size-4" />Workspace</TabsTrigger>
           <TabsTrigger value="perfil" className="rounded-xl"><UserRound className="mr-1.5 size-4" />Perfil</TabsTrigger>
           <TabsTrigger value="equipe" className="rounded-xl"><Users className="mr-1.5 size-4" />Equipe</TabsTrigger>
-          <TabsTrigger value="gateway" className="rounded-xl"><KeyRound className="mr-1.5 size-4" />Gateway</TabsTrigger>
         </TabsList>
         <TabsContent value="workspace"><WorkspaceTab /></TabsContent>
         <TabsContent value="perfil"><ProfileTab /></TabsContent>
         <TabsContent value="equipe"><TeamTab /></TabsContent>
-        <TabsContent value="gateway"><GatewayTab /></TabsContent>
       </Tabs>
     </>
   );
@@ -396,58 +391,6 @@ function TeamTab() {
           </form>
         </DialogContent>
       </Dialog>
-    </Panel>
-  );
-}
-
-function GatewayTab() {
-  const { current } = useWorkspace();
-  const instName = current ? `zp-${current.workspace.id.slice(0, 8)}` : "zp-default";
-
-  return (
-    <Panel>
-      <div className="space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="grid size-11 place-items-center rounded-2xl bg-primary/15 text-primary">
-            <KeyRound className="size-5" />
-          </div>
-          <div>
-            <h2 className="font-bold text-base">Gateway de Mensageria Evolution API</h2>
-            <p className="text-xs text-muted-foreground">Conexão segura para disparo em massa e atendimento via Baileys.</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-muted/20 p-4 space-y-3 text-xs leading-relaxed">
-          <div className="flex items-center gap-2 text-success font-semibold">
-            <CheckCircle2 className="size-4" />
-            <span>Servidor Conectado & Credenciais Blindadas</span>
-          </div>
-          <p className="text-muted-foreground">
-            A URL do gateway e as chaves de API (<code className="font-mono text-foreground">EVOLUTION_API_KEY</code>) são mantidas exclusivamente no servidor backend (Edge Functions / Secrets). Nenhuma credencial é exposta no navegador dos operadores.
-          </p>
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t font-mono text-[11px]">
-            <div>
-              <span className="text-muted-foreground">Identificador da Instância:</span>
-              <p className="font-bold text-foreground mt-0.5">{instName}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Fila Anti-Banimento:</span>
-              <p className="font-bold text-primary mt-0.5">Ativa (Minuto a Minuto)</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <p className="text-xs text-muted-foreground">
-            Para parear o chip de WhatsApp via QR Code ou verificar a conexão em tempo real:
-          </p>
-          <Button asChild className="rounded-xl">
-            <Link to="/whatsapp">
-              <Smartphone className="mr-1.5 size-4" /> Conectar WhatsApp
-            </Link>
-          </Button>
-        </div>
-      </div>
     </Panel>
   );
 }
