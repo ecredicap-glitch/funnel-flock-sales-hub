@@ -64,6 +64,17 @@ export function ImportContactsDialog({ workspaceId, userId, lists, onDone }: {
       if (seen.has(p)) { dup++; continue; }
       seen.add(p);
       const get = (k: FieldKey) => (map[k] === NONE ? null : String(r[map[k]] ?? "").trim() || null);
+
+      // Captura todas as colunas da planilha com valor não-vazio
+      const custom_fields: Record<string, string> = {};
+      for (const [colName, val] of Object.entries(r)) {
+        const strVal = String(val ?? "").trim();
+        if (!strVal) continue;
+        // Não duplica a coluna usada como telefone no custom_fields
+        if (colName === map.phone) continue;
+        custom_fields[colName] = strVal;
+      }
+
       valid.push({
         workspace_id: workspaceId,
         phone: p,
@@ -71,6 +82,7 @@ export function ImportContactsDialog({ workspaceId, userId, lists, onDone }: {
         email: get("email"),
         city: get("city"),
         tags: (get("tags") ?? "").split(",").map((t) => t.trim()).filter(Boolean),
+        custom_fields,
         opt_in: true,
         opt_in_source: source.trim(),
         opt_in_at: new Date().toISOString(),

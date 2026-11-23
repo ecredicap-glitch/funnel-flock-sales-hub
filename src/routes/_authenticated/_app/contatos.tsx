@@ -2,7 +2,25 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, ListPlus, MoreHorizontal, Plus, Search, Trash2, UserCheck, Users } from "lucide-react";
+import {
+  Ban,
+  Building2,
+  Calendar,
+  ExternalLink,
+  Info,
+  ListPlus,
+  Mail,
+  MapPin,
+  MoreHorizontal,
+  Plus,
+  Search,
+  ShieldCheck,
+  Tag,
+  Trash2,
+  User,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "@/lib/workspace";
@@ -19,6 +37,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_authenticated/_app/contatos")({
   head: () => ({
@@ -39,6 +64,12 @@ type Status = Database["public"]["Enums"]["contact_status"];
 const STATUS_LABEL: Record<Status, string> = { active: "Ativo", unsubscribed: "Descadastrado", blocked: "Bloqueado" };
 const SUGGESTED_TAGS = ["crédito consignado", "FGTS", "consórcio", "limpa nome", "rating bancário"];
 
+function formatFieldLabel(key: string): string {
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
 function ContatosPage() {
   const { current, userId, isAdmin } = useWorkspace();
   const ws = current!.workspace.id;
@@ -48,6 +79,7 @@ function ContatosPage() {
   const [tab, setTab] = useState("contatos");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
   const contacts = useQuery({
     queryKey: ["contacts", ws],
@@ -222,7 +254,13 @@ function ContatosPage() {
                     />
                   </TableCell>
                 )}
-                <TableCell className="font-medium">{c.name ?? "—"}<div className="text-xs text-muted-foreground">{c.city}</div></TableCell>
+                <TableCell
+                  className="font-medium cursor-pointer hover:underline text-primary"
+                  onClick={() => setViewingContact(c)}
+                >
+                  {c.name ?? "—"}
+                  <div className="text-xs text-muted-foreground">{c.city}</div>
+                </TableCell>
                 <TableCell className="font-mono text-xs">{formatPhone(c.phone)}</TableCell>
                 <TableCell className="hidden md:table-cell"><div className="flex flex-wrap gap-1">{c.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div></TableCell>
                 <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
@@ -233,6 +271,10 @@ function ContatosPage() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="Ações"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setViewingContact(c)}>
+                        <Building2 className="mr-2 h-4 w-4" />Ver ficha completa
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       {(lists.data ?? []).length > 0 && <DropdownMenuLabel>Adicionar à lista</DropdownMenuLabel>}
                       {(lists.data ?? []).map((l) => <DropdownMenuItem key={l.id} onClick={() => addToList(c, l.id)}><ListPlus className="mr-2 h-4 w-4" />{l.name}</DropdownMenuItem>)}
                       <DropdownMenuSeparator />
@@ -281,6 +323,163 @@ function ContatosPage() {
         <TabsContent value="bloqueados">{table(blocked)}</TabsContent>
         <TabsContent value="listas"><ListsPanel ws={ws} lists={lists.data ?? []} onDone={refresh} onOpen={(id) => { setListFilter(id); setTab("contatos"); }} /></TabsContent>
       </Tabs>
+
+      {/* Ficha Completa do Contato (Drawer Lateral) */}
+      <Sheet open={!!viewingContact} onOpenChange={(open) => !open && setViewingContact(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          {viewingContact && (
+            <div className="space-y-6 pt-4">
+              <SheetHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant={viewingContact.status === "active" ? "default" : "outline"}>
+                    {STATUS_LABEL[viewingContact.status]}
+                  </Badge>
+                  <Badge variant="secondary" className="capitalize">
+                    Funil: {viewingContact.stage}
+                  </Badge>
+                </div>
+                <SheetTitle className="text-xl font-bold mt-2">
+                  {viewingContact.name || "Sem nome cadastrado"}
+                </SheetTitle>
+                <SheetDescription className="flex items-center gap-2">
+                  <span className="font-mono">{formatPhone(viewingContact.phone)}</span>
+                  <a
+                    href={`https://wa.me/${viewingContact.phone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-xs text-primary hover:underline ml-2"
+                  >
+                    Abrir no WhatsApp <ExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                </SheetDescription>
+              </SheetHeader>
+
+              {/* Informações Básicas */}
+              <div className="rounded-xl border border-border/50 bg-card p-4 space-y-2.5 text-sm">
+                <h4 className="font-semibold text-xs tracking-wide uppercase text-muted-foreground">Contato Básico</h4>
+                {viewingContact.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{viewingContact.email}</span>
+                  </div>
+                )}
+                {viewingContact.city && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{viewingContact.city}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    Cadastrado em {new Date(viewingContact.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Belem" })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tags */}
+              {viewingContact.tags && viewingContact.tags.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-xs tracking-wide uppercase text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" /> Tags & Segmentação
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewingContact.tags.map((t) => (
+                      <Badge key={t} variant="secondary">{t}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dados da Planilha / Empresa (custom_fields) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-xs tracking-wide uppercase text-muted-foreground flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5" /> Dados da Planilha / Empresa
+                  </h4>
+                  <span className="text-[11px] text-muted-foreground">Variáveis para campanhas</span>
+                </div>
+
+                {viewingContact.custom_fields && Object.keys(viewingContact.custom_fields as object).length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2 rounded-xl border border-border/50 bg-card/60 p-3">
+                    {Object.entries(viewingContact.custom_fields as Record<string, unknown>).map(([key, val]) => (
+                      <div key={key} className="flex flex-col py-1.5 border-b border-border/30 last:border-b-0">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {formatFieldLabel(key)} <code className="text-[10px] text-primary">{"{{" + key + "}}"}</code>
+                        </span>
+                        <span className="text-sm font-semibold text-foreground break-words mt-0.5">
+                          {String(val ?? "—")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground flex flex-col items-center gap-1.5">
+                    <Info className="h-4 w-4" />
+                    Nenhum dado adicional foi gravado para este contato.
+                  </div>
+                )}
+              </div>
+
+              {/* Consentimento & Auditoria LGPD */}
+              <div className="rounded-xl border border-border/50 bg-card p-4 space-y-2 text-xs">
+                <h4 className="font-semibold text-xs tracking-wide uppercase text-muted-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Origem & Consentimento (LGPD)
+                </h4>
+                <p><b>Origem declarada:</b> {viewingContact.opt_in_source || "Não informada"}</p>
+                <p>
+                  <b>Data do Opt-in:</b>{" "}
+                  {viewingContact.opt_in_at
+                    ? new Date(viewingContact.opt_in_at).toLocaleString("pt-BR", { timeZone: "America/Belem" })
+                    : "Sem registro"}
+                </p>
+              </div>
+
+              {/* Ações Rápidas */}
+              <div className="pt-2 flex flex-wrap gap-2">
+                {viewingContact.status === "active" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      setStatus(viewingContact, "unsubscribed");
+                      setViewingContact((prev) => prev ? { ...prev, status: "unsubscribed" } : null);
+                    }}
+                  >
+                    Marcar descadastrado
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      setStatus(viewingContact, "active");
+                      setViewingContact((prev) => prev ? { ...prev, status: "active" } : null);
+                    }}
+                  >
+                    <UserCheck className="mr-1.5 h-3.5 w-3.5" /> Reativar contato
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="text-xs"
+                    onClick={() => {
+                      remove(viewingContact);
+                      setViewingContact(null);
+                    }}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Excluir
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
