@@ -10,6 +10,7 @@ import { InfoTip, DisabledReason } from "@/components/app/InfoTip";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/lib/workspace";
 import { render } from "@/lib/spintax";
+import { extractFirstName } from "@/lib/contact-name";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -208,7 +209,17 @@ function CampanhasPage() {
       const { name, list_id, body, ...rules } = form;
       const { data: camp, error } = await supabase.from("campaigns").insert({ workspace_id: ws, name, list_id, body, ...rules, total: contacts.length, status: "draft" }).select("id").single();
       if (error || !camp) throw error;
-      const rows = contacts.map((c) => ({ workspace_id: ws, campaign_id: camp.id, contact_id: c.id, phone: c.phone, body: render(body, { ...((c.custom_fields ?? {}) as Record<string, string>), nome: c.name?.split(" ")[0], cidade: c.city }) }));
+      const rows = contacts.map((c) => ({
+        workspace_id: ws,
+        campaign_id: camp.id,
+        contact_id: c.id,
+        phone: c.phone,
+        body: render(body, {
+          ...((c.custom_fields ?? {}) as Record<string, string>),
+          nome: extractFirstName(c.name),
+          cidade: c.city,
+        }),
+      }));
       for (let i = 0; i < rows.length; i += 500) { const { error: e } = await supabase.from("campaign_messages").insert(rows.slice(i, i + 500)); if (e) throw e; }
       
       let feedback = `Campanha criada com ${contacts.length} contatos elegíveis!`;

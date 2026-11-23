@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePhone } from "@/lib/phone";
+import { cleanContactName } from "@/lib/contact-name";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -64,9 +65,16 @@ export function ImportContactsDialog({ workspaceId, userId, lists, onDone }: {
       seen.add(p);
       const get = (k: FieldKey) => (map[k] === NONE ? null : String(r[map[k]] ?? "").trim() || null);
       valid.push({
-        workspace_id: workspaceId, phone: p, name: get("name"), email: get("email"), city: get("city"),
+        workspace_id: workspaceId,
+        phone: p,
+        name: cleanContactName(get("name")),
+        email: get("email"),
+        city: get("city"),
         tags: (get("tags") ?? "").split(",").map((t) => t.trim()).filter(Boolean),
-        opt_in: true, opt_in_source: source.trim(), opt_in_at: new Date().toISOString(), created_by: userId,
+        opt_in: true,
+        opt_in_source: source.trim(),
+        opt_in_at: new Date().toISOString(),
+        created_by: userId,
       });
     }
     return { valid, invalid, dup };

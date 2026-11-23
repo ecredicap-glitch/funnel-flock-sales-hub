@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
 import { inWindow, belemDayStart, nextDelaySeconds, shouldAutoPause, advanceCadence, MAX_ATTEMPTS, type CadenceStep } from "@/lib/send-engine";
 import { render } from "@/lib/spintax";
+import { extractFirstName } from "@/lib/contact-name";
 
 // Runs every minute: sends at most ONE message per running campaign, respecting anti-ban rules.
 export const Route = createFileRoute("/api/public/jobs/send-queue")({
@@ -76,7 +77,11 @@ export const Route = createFileRoute("/api/public/jobs/send-queue")({
             const inst = `zp-${e.workspace_id.slice(0, 8)}`;
             const st = await fetch(`${base}/instance/connectionState/${inst}`, { headers: { apikey: key } }).then((r) => r.json()).catch(() => null) as any;
             if (st?.instance?.state !== "open") continue;
-            const text = render(step.body, { ...((ct.custom_fields ?? {}) as Record<string, string>), nome: ct.name?.split(" ")[0] ?? undefined, cidade: ct.city ?? undefined });
+            const text = render(step.body, {
+              ...((ct.custom_fields ?? {}) as Record<string, string>),
+              nome: extractFirstName(ct.name) || undefined,
+              cidade: ct.city ?? undefined,
+            });
             let ok = false; let extId: string | null = null;
             try {
               const r = await fetch(`${base}/message/sendText/${inst}`, { method: "POST", headers: { apikey: key, "content-type": "application/json" },
