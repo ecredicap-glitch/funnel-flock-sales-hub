@@ -46,6 +46,8 @@ function ContatosPage() {
   const [q, setQ] = useState("");
   const [listFilter, setListFilter] = useState<string | null>(null);
   const [tab, setTab] = useState("contatos");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const contacts = useQuery({
     queryKey: ["contacts", ws],
@@ -91,46 +93,163 @@ function ContatosPage() {
     toast.success("Adicionado à lista"); refresh();
   }
 
+  // Ações em massa
+  async function deleteSelected() {
+    if (!selectedIds.size) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selectedIds.size} contato(s) selecionado(s)? Esta ação não pode ser desfeita.`)) return;
+    setDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunk = ids.slice(i, i + 200);
+        const { error } = await supabase.from("contacts").delete().in("id", chunk).eq("workspace_id", ws);
+        if (error) throw error;
+      }
+      toast.success(`${selectedIds.size} contato(s) excluído(s) com sucesso`);
+      setSelectedIds(new Set());
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao excluir contatos.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function deleteAllFiltered(currentFilteredRows: typeof all) {
+    if (!currentFilteredRows.length) return;
+    const count = currentFilteredRows.length;
+    if (!confirm(`ATENÇÃO: Deseja realmente excluir TODOS os ${count} contatos listados? Esta ação é definitiva e removerá os contatos do banco.`)) return;
+    setDeleting(true);
+    try {
+      const ids = currentFilteredRows.map((c) => c.id);
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunk = ids.slice(i, i + 200);
+        const { error } = await supabase.from("contacts").delete().in("id", chunk).eq("workspace_id", ws);
+        if (error) throw error;
+      }
+      toast.success(`${count} contato(s) excluído(s) com sucesso!`);
+      setSelectedIds(new Set());
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao excluir contatos.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const toggleSelectAll = (rows: typeof all) => {
+    const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
+    const next = new Set(selectedIds);
+    if (allSelected) {
+      rows.forEach((r) => next.delete(r.id));
+    } else {
+      rows.forEach((r) => next.add(r.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const toggleSelectOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
   const table = (rows: typeof all) => rows.length === 0 ? (
     <EmptyState icon={Users} title={all.length ? "Nenhum contato encontrado" : "Sua base está vazia"}
       description={all.length ? "Ajuste a busca ou o filtro." : "Importe uma planilha CSV/XLSX ou adicione um contato manualmente. Só contatos com opt-in entram em campanhas."} />
   ) : (
-    <div className="glass overflow-x-auto rounded-3xl">
-      <Table>
-        <TableHeader><TableRow>
-          <TableHead>Nome</TableHead><TableHead>Telefone</TableHead><TableHead className="hidden md:table-cell">Tags</TableHead>
-          <TableHead className="hidden lg:table-cell">Opt-in</TableHead><TableHead>Status</TableHead><TableHead />
-        </TableRow></TableHeader>
-        <TableBody>
-          {rows.slice(0, 500).map((c) => (
-            <TableRow key={c.id}>
-              <TableCell className="font-medium">{c.name ?? "—"}<div className="text-xs text-muted-foreground">{c.city}</div></TableCell>
-              <TableCell className="font-mono text-xs">{formatPhone(c.phone)}</TableCell>
-              <TableCell className="hidden md:table-cell"><div className="flex flex-wrap gap-1">{c.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div></TableCell>
-              <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                {c.opt_in ? <>{c.opt_in_source}<br />{c.opt_in_at && new Date(c.opt_in_at).toLocaleDateString("pt-BR", { timeZone: "America/Belem" })}</> : <span className="text-destructive">Sem opt-in</span>}
-              </TableCell>
-              <TableCell><Badge variant={c.status === "active" ? "default" : "outline"}>{STATUS_LABEL[c.status]}</Badge></TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="Ações"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {(lists.data ?? []).length > 0 && <DropdownMenuLabel>Adicionar à lista</DropdownMenuLabel>}
-                    {(lists.data ?? []).map((l) => <DropdownMenuItem key={l.id} onClick={() => addToList(c, l.id)}><ListPlus className="mr-2 h-4 w-4" />{l.name}</DropdownMenuItem>)}
-                    <DropdownMenuSeparator />
-                    {c.status === "active" ? <>
-                      <DropdownMenuItem onClick={() => setStatus(c, "unsubscribed")}>Marcar descadastrado</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setStatus(c, "blocked")}><Ban className="mr-2 h-4 w-4" />Bloquear</DropdownMenuItem>
-                    </> : <DropdownMenuItem onClick={() => setStatus(c, "active")}><UserCheck className="mr-2 h-4 w-4" />Reativar</DropdownMenuItem>}
-                    {isAdmin && <DropdownMenuItem className="text-destructive" onClick={() => remove(c)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {rows.length > 500 && <p className="p-3 text-center text-xs text-muted-foreground">Mostrando 500 de {rows.length}. Use a busca para refinar.</p>}
+    <div className="space-y-3">
+      {/* Barra de Ações em Massa */}
+      {isAdmin && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-muted/20 px-4 py-2 text-xs">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer font-medium">
+              <Checkbox
+                checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
+                onCheckedChange={() => toggleSelectAll(rows)}
+              />
+              <span>Selecionar página ({rows.slice(0, 500).length})</span>
+            </label>
+            {selectedIds.size > 0 && (
+              <Badge variant="secondary" className="font-mono">
+                {selectedIds.size} selecionado(s)
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-8 rounded-xl text-xs"
+                disabled={deleting}
+                onClick={deleteSelected}
+              >
+                <Trash2 className="mr-1.5 size-3.5" />
+                Excluir selecionados ({selectedIds.size})
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-xl text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+              disabled={deleting || rows.length === 0}
+              onClick={() => deleteAllFiltered(rows)}
+            >
+              <Trash2 className="mr-1.5 size-3.5" />
+              Excluir todos ({rows.length})
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="glass overflow-x-auto rounded-3xl">
+        <Table>
+          <TableHeader><TableRow>
+            {isAdmin && <TableHead className="w-10" />}
+            <TableHead>Nome</TableHead><TableHead>Telefone</TableHead><TableHead className="hidden md:table-cell">Tags</TableHead>
+            <TableHead className="hidden lg:table-cell">Opt-in</TableHead><TableHead>Status</TableHead><TableHead />
+          </TableRow></TableHeader>
+          <TableBody>
+            {rows.slice(0, 500).map((c) => (
+              <TableRow key={c.id}>
+                {isAdmin && (
+                  <TableCell className="w-10">
+                    <Checkbox
+                      checked={selectedIds.has(c.id)}
+                      onCheckedChange={() => toggleSelectOne(c.id)}
+                    />
+                  </TableCell>
+                )}
+                <TableCell className="font-medium">{c.name ?? "—"}<div className="text-xs text-muted-foreground">{c.city}</div></TableCell>
+                <TableCell className="font-mono text-xs">{formatPhone(c.phone)}</TableCell>
+                <TableCell className="hidden md:table-cell"><div className="flex flex-wrap gap-1">{c.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div></TableCell>
+                <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
+                  {c.opt_in ? <>{c.opt_in_source}<br />{c.opt_in_at && new Date(c.opt_in_at).toLocaleDateString("pt-BR", { timeZone: "America/Belem" })}</> : <span className="text-destructive">Sem opt-in</span>}
+                </TableCell>
+                <TableCell><Badge variant={c.status === "active" ? "default" : "outline"}>{STATUS_LABEL[c.status]}</Badge></TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="Ações"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {(lists.data ?? []).length > 0 && <DropdownMenuLabel>Adicionar à lista</DropdownMenuLabel>}
+                      {(lists.data ?? []).map((l) => <DropdownMenuItem key={l.id} onClick={() => addToList(c, l.id)}><ListPlus className="mr-2 h-4 w-4" />{l.name}</DropdownMenuItem>)}
+                      <DropdownMenuSeparator />
+                      {c.status === "active" ? <>
+                        <DropdownMenuItem onClick={() => setStatus(c, "unsubscribed")}>Marcar descadastrado</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setStatus(c, "blocked")}><Ban className="mr-2 h-4 w-4" />Bloquear</DropdownMenuItem>
+                      </> : <DropdownMenuItem onClick={() => setStatus(c, "active")}><UserCheck className="mr-2 h-4 w-4" />Reativar</DropdownMenuItem>}
+                      {isAdmin && <DropdownMenuItem className="text-destructive" onClick={() => remove(c)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {rows.length > 500 && <p className="p-3 text-center text-xs text-muted-foreground">Mostrando 500 de {rows.length}. Use a busca para refinar.</p>}
+      </div>
     </div>
   );
 
