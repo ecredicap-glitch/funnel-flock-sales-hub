@@ -142,18 +142,82 @@ function CampanhasPage() {
     setBusy(true);
     try {
       const { data: mem } = await supabase.from("contact_list_members").select("contacts(id,name,phone,city,opt_in,status,custom_fields)").eq("list_id", form.list_id);
+      const totalInList = mem?.length ?? 0;
+      if (!totalInList) { toast.error("A lista selecionada está vazia."); return; }
+
+      // 1. Deduplicação por dias (filtro temporal recente)
       const since = new Date(Date.now() - form.dedupe_days * 86400_000).toISOString();
       const { data: recent } = await supabase.from("campaign_messages").select("phone").eq("workspace_id", ws).eq("status", "sent").gte("sent_at", since);
-      const recentSet = new Set((recent ?? []).map((r) => r.phone));
+      const recentPhones = new Set((recent ?? []).map((r) => r.phone));
+
+      // 2. Anti-repetição da MESMA mensagem (Deduplicação de conteúdo histórico)
+      // Normaliza o template base (sem spintax e pontuação excessiva) para comparar conteúdo essencial
+      const normalizeText = (t: string) => t.toLowerCase().replace(/\{[^}]+\}/g, "").replace(/\s+/g, " ").trim();
+      const currentNormBody = normalizeText(form.body);
+
+      // Busca mensagens enviadas a esses contatos com o mesmo corpo base
+      const { data: sameBodyMsgs } = await supabase
+        .from("campaign_messages")
+        .select("phone, body")
+        .eq("workspace_id", ws)
+        .eq("status", "sent");
+
+      const sameBodyPhones = new Set(
+        (sameBodyMsgs ?? [])
+          .filter((m) => normalizeText(m.body) === currentNormBody)
+          .map((m) => m.phone)
+      );
+
       const seen = new Set<string>();
-      const contacts = (mem ?? []).map((m) => m.contacts).filter((c): c is NonNullable<typeof c> => !!c && c.opt_in && c.status === "active" && !recentSet.has(c.phone) && !seen.has(c.phone) && !!seen.add(c.phone));
-      if (!contacts.length) { toast.error("Nenhum contato elegível (precisa de opt-in, estar ativo e não ter recebido mensagem recentemente)."); return; }
+      let filteredByRecent = 0;
+      let filteredBySameBody = 0;
+      let filteredByOptIn = 0;
+
+      const contacts = (mem ?? []).map((m) => m.contacts).filter((c): c is NonNullable<typeof c> => {
+        if (!c || c.status !== "active") return false;
+        if (!c.opt_in) { filteredByOptIn++; return false; }
+        if (seen.has(c.phone)) return false;
+        seen.add(c.phone);
+
+        if (recentPhones.has(c.phone)) {
+          filteredByRecent++;
+          return false;
+        }
+
+        if (sameBodyPhones.has(c.phone)) {
+          filteredBySameBody++;
+          return false;
+        }
+
+        return true;
+      });
+
+      if (!contacts.length) {
+        let msg = "Nenhum contato elegível para envio.";
+        if (filteredBySameBody > 0) {
+          msg = `${filteredBySameBody} contato(s) já receberam essa mesma mensagem anteriormente. Altere o texto ou use spintax.`;
+        } else if (filteredByRecent > 0) {
+          msg = `${filteredByRecent} contato(s) já receberam disparo nos últimos ${form.dedupe_days} dias.`;
+        } else if (filteredByOptIn > 0) {
+          msg = `${filteredByOptIn} contato(s) ignorados por falta de opt-in (LGPD).`;
+        }
+        toast.error(msg);
+        return;
+      }
+
       const { name, list_id, body, ...rules } = form;
       const { data: camp, error } = await supabase.from("campaigns").insert({ workspace_id: ws, name, list_id, body, ...rules, total: contacts.length, status: "draft" }).select("id").single();
       if (error || !camp) throw error;
       const rows = contacts.map((c) => ({ workspace_id: ws, campaign_id: camp.id, contact_id: c.id, phone: c.phone, body: render(body, { ...((c.custom_fields ?? {}) as Record<string, string>), nome: c.name?.split(" ")[0], cidade: c.city }) }));
       for (let i = 0; i < rows.length; i += 500) { const { error: e } = await supabase.from("campaign_messages").insert(rows.slice(i, i + 500)); if (e) throw e; }
-      toast.success(`Campanha criada com ${contacts.length} contatos. Clique em Iniciar.`); setForm(null); refresh();
+      
+      let feedback = `Campanha criada com ${contacts.length} contatos elegíveis!`;
+      if (filteredByRecent > 0 || filteredBySameBody > 0) {
+        feedback += ` (${filteredByRecent} ignorados por envio recente, ${filteredBySameBody} por mensagem idêntica).`;
+      }
+      toast.success(feedback);
+      setForm(null);
+      refresh();
     } catch (e: any) { toast.error(e?.message ?? "Erro ao criar campanha."); } finally { setBusy(false); }
   }
   async function setStatus(id: string, status: "running" | "paused" | "cancelled") {
