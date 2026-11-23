@@ -3,10 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Gauge, Clock } from "lucide-react";
-import "@lovable.dev/cloud-auth-js/styles.css";
 
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,15 +103,15 @@ function AuthPage() {
     } catch {
       /* storage unavailable */
     }
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/cockpit`,
+      },
     });
-    if (result.error) {
-      toast.error("Não foi possível entrar. Tente novamente.");
-      return;
+    if (error) {
+      toast.error("Não foi possível conectar com o Google. Tente novamente.");
     }
-    if (result.redirected) return;
-    goAfterLogin();
   }
 
   return (
